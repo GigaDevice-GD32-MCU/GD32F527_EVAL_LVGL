@@ -1,6 +1,6 @@
 # LVGL V8.3 ported to the GD32F527I EVAL
 
-本工程将 `LVGL V8.3.11` 移植至 `GD32F527I EVAL` 平台，用于 GUI 演示。
+This project ports LVGL V8.3.11 to the GD32F527I EVAL platform for GUI demonstration.
 
 ## Hardware Information
 
@@ -28,4 +28,4 @@ The `GD32F527I Development Kit` is based on:
 | GUI        | `Yes`  | `LVGL`    | `V 8.3.11` | `MIT`           |
 | Filesystem | `Yes`  | `FatFs`   | `R0.16`    | `FatFs license` |
 
-> 引入新的第三方库时，请同步更新本表，并保留其许可证文本与版权声明。
+> When adding new third-party libraries, update this table simultaneously and preserve the corresponding license texts and copyright statements.
