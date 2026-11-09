@@ -2,7 +2,7 @@
     \file    usbd_transc.h
     \brief   USB transaction core functions prototype
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*

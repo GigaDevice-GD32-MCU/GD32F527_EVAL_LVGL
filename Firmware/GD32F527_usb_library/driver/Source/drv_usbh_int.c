@@ -2,7 +2,7 @@
     \file    drv_usbh_int.c
     \brief   USB host mode interrupt handler file
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -597,7 +597,10 @@ static uint32_t usbh_int_rxfifonoempty(usb_core_driver *udev)
 static uint32_t usbh_int_txfifoempty(usb_core_driver *udev, usb_pipe_mode pp_mode)
 {
     uint8_t pp_num = 0U;
-    uint16_t word_count = 0U, len = 0U;
+    uint16_t word_count = 0U;
+    uint32_t len = 0U;
+    __IO uint16_t req_count = 0U;
+    uint16_t max_packet_len = 0U;
     __IO uint32_t *txfiforeg = 0U, txfifostate = 0U;
 
     if(PIPE_NON_PERIOD == pp_mode) {
@@ -612,30 +615,46 @@ static uint32_t usbh_int_txfifoempty(usb_core_driver *udev, usb_pipe_mode pp_mod
 
     pp_num = (uint8_t)((txfifostate & TFQSTAT_CNUM) >> 27);
 
-    word_count = (uint16_t)(udev->host.pipe[pp_num].xfer_len + 3U) / 4U;
+    usb_pipe *pp = &udev->host.pipe[pp_num];
 
-    while(((txfifostate & TFQSTAT_TXFS) >= word_count) && (0U != udev->host.pipe[pp_num].xfer_len)) {
-        len = (uint16_t)(txfifostate & TFQSTAT_TXFS) * 4U;
+    max_packet_len = pp->ep.mps;
 
-        if(len > udev->host.pipe[pp_num].xfer_len) {
-            /* last packet */
-            len = (uint16_t)udev->host.pipe[pp_num].xfer_len;
-
-            if(PIPE_NON_PERIOD == pp_mode) {
-                udev->regs.gr->GINTEN &= ~GINTEN_NPTXFEIE;
-            } else {
-                udev->regs.gr->GINTEN &= ~GINTEN_PTXFEIE;
-            }
+    while(0U != pp->xfer_len) {
+        if(PIPE_NON_PERIOD == pp_mode) {
+            req_count = (uint16_t)((txfifostate & HNPTFQSTAT_NPTXRQS) >> 16);
+        } else {
+            req_count = (uint16_t)((txfifostate & HPTFQSTAT_PTXREQS) >> 16);
         }
 
-        word_count = (uint16_t)((udev->host.pipe[pp_num].xfer_len + 3U) / 4U);
-        usb_txfifo_write(&udev->regs, udev->host.pipe[pp_num].xfer_buf, pp_num, len);
+        if(0U == req_count) {
+            break;
+        }
 
-        udev->host.pipe[pp_num].xfer_buf += len;
-        udev->host.pipe[pp_num].xfer_len -= len;
-        udev->host.pipe[pp_num].xfer_count += len;
+        len = pp->xfer_len;
+        if(len > max_packet_len * req_count) {
+            len = max_packet_len * req_count;
+        }
+
+        word_count = (uint16_t)((len + 3U) / 4U);
+        if((txfifostate & TFQSTAT_TXFS) < word_count) {
+            len = (uint16_t)(4*(txfifostate & TFQSTAT_TXFS));
+        }
+
+        usb_txfifo_write(&udev->regs, pp->xfer_buf, pp_num, (uint16_t)len);
+
+        pp->xfer_buf += len;
+        pp->xfer_len -= len;
+        pp->xfer_count += len;
 
         txfifostate = *txfiforeg;
+    }
+
+    if(0U == pp->xfer_len) {
+        if(PIPE_NON_PERIOD == pp_mode) {
+            udev->regs.gr->GINTEN &= ~GINTEN_NPTXFEIE;
+        } else {
+            udev->regs.gr->GINTEN &= ~GINTEN_PTXFEIE;
+        }
     }
 
     return 1U;

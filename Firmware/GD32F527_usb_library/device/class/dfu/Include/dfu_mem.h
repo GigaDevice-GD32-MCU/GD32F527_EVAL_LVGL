@@ -2,7 +2,7 @@
     \file    dfu_mem.h
     \brief   USB DFU device media access layer header file
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*

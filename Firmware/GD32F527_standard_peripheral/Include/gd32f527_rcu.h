@@ -2,7 +2,7 @@
     \file    gd32f527_rcu.h
     \brief   definitions for the RCU
     
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -388,7 +388,7 @@ OF SUCH DAMAGE.
 #define RCU_BDCTL_LXTALEN               BIT(0)                    /*!< LXTAL enable */
 #define RCU_BDCTL_LXTALSTB              BIT(1)                    /*!< low speed crystal oscillator stabilization flag */
 #define RCU_BDCTL_LXTALBPS              BIT(2)                    /*!< LXTAL bypass mode enable */
-#define RCU_BDCTL_LXTALDRI              BITS(3,4)                 /*!< LXTAL drive capability */
+#define RCU_BDCTL_LXTALDRI              BIT(3)                    /*!< LXTAL drive capability */
 #define RCU_BDCTL_RTCSRC                BITS(8,9)                 /*!< RTC clock entry selection */
 #define RCU_BDCTL_RTCEN                 BIT(15)                   /*!< RTC clock enable */
 #define RCU_BDCTL_BKPRST                BIT(16)                   /*!< backup domain reset */
@@ -1073,11 +1073,8 @@ typedef enum {
 
 /* RCU_BDCTL register bit define */
 /* LXTAL drive capability */
-#define BDCTL_LXTALDRI(regval)          (BITS(3,4) & ((uint32_t)(regval) << 3))
-#define RCU_LXTALDRI_LOWER_DRIVE        BDCTL_LXTALDRI(0)                  /*!< LXTAL drive capability is selected lower */
-#define RCU_LXTALDRI_MED_LOWER_DRIVE    BDCTL_LXTALDRI(1)                  /*!< LXTAL drive capability is selected medium lower */
-#define RCU_LXTALDRI_MED_HIGHER_DRIVE   BDCTL_LXTALDRI(2)                  /*!< LXTAL drive capability is selected medium higher */
-#define RCU_LXTALDRI_HIGHER_DRIVE       BDCTL_LXTALDRI(3)                  /*!< LXTAL drive capability is selected higher */
+#define RCU_LXTALDRI_LOWER_DRIVE        ((uint32_t)0x00000000)              /*!< LXTAL drive capability is selected lower */
+#define RCU_LXTALDRI_HIGHER_DRIVE       RCU_BDCTL_LXTALDRI                  /*!< LXTAL drive capability is selected higher */
 
 /* RTC clock entry selection */
 #define BDCTL_RTCSRC(regval)            (BITS(8,9) & ((uint32_t)(regval) << 8))

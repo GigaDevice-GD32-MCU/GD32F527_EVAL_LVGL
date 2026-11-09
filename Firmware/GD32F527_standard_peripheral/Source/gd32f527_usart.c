@@ -2,7 +2,7 @@
     \file    gd32f527_usart.c
     \brief   USART driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -877,11 +877,15 @@ void usart_dma_transmit_config(uint32_t usart_periph, uint32_t dmacmd)
 */
 FlagStatus usart_flag_get(uint32_t usart_periph, usart_flag_enum flag)
 {
+    FlagStatus status;
+
     if(RESET != (USART_REG_VAL(usart_periph, flag) & BIT(USART_BIT_POS(flag)))) {
-        return SET;
+        status = SET;
     } else {
-        return RESET;
+        status = RESET;
     }
+
+    return status;
 }
 
 /*!
@@ -978,16 +982,20 @@ void usart_interrupt_disable(uint32_t usart_periph, usart_interrupt_enum interru
 FlagStatus usart_interrupt_flag_get(uint32_t usart_periph, usart_interrupt_flag_enum int_flag)
 {
     uint32_t intenable = 0U, flagstatus = 0U;
+    FlagStatus status;
+
     /* get the interrupt enable bit status */
     intenable = (USART_REG_VAL(usart_periph, int_flag) & BIT(USART_BIT_POS(int_flag)));
     /* get the corresponding flag bit status */
     flagstatus = (USART_REG_VAL2(usart_periph, int_flag) & BIT(USART_BIT_POS2(int_flag)));
 
     if((0U != flagstatus) && (0U != intenable)) {
-        return SET;
+        status = SET;
     } else {
-        return RESET;
+        status = RESET;
     }
+
+    return status;
 }
 
 /*!

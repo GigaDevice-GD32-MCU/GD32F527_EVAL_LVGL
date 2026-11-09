@@ -2,7 +2,7 @@
     \file    gd32f527_dci.c
     \brief   DCI driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -256,7 +256,8 @@ uint32_t dci_data_read(void)
 FlagStatus dci_flag_get(uint32_t flag)
 {
     uint32_t stat = 0U;
-
+    FlagStatus flag_status = RESET;
+    
     if(flag >> 31) {
         /* get flag status from DCI_STAT1 register */
         stat = DCI_STAT1;
@@ -266,10 +267,12 @@ FlagStatus dci_flag_get(uint32_t flag)
     }
 
     if(flag & stat) {
-        return SET;
+        flag_status = SET;
     } else {
-        return RESET;
+        flag_status = RESET;
     }
+    
+    return flag_status;
 }
 
 /*!
@@ -317,11 +320,15 @@ void dci_interrupt_disable(uint32_t interrupt)
 */
 FlagStatus dci_interrupt_flag_get(uint32_t int_flag)
 {
+    FlagStatus flag_status = RESET;
+    
     if(RESET == (DCI_INTF & int_flag)) {
-        return RESET;
+        flag_status = RESET;
     } else {
-        return SET;
+        flag_status = SET;
     }
+    
+    return flag_status;
 }
 
 /*!

@@ -2,7 +2,7 @@
     \file    drv_usb_dev.c
     \brief   USB device mode low level driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*

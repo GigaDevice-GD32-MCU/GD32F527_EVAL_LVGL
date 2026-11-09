@@ -2,7 +2,7 @@
     \file    gd32f527_pmu.c
     \brief   PMU driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -363,11 +363,13 @@ void pmu_backup_write_disable(void)
 */
 FlagStatus pmu_flag_get(uint32_t flag)
 {
+    FlagStatus status;
     if(PMU_CS & flag) {
-        return SET;
+        status = SET;
     } else {
-        return RESET;
+        status = RESET;
     }
+    return status;
 }
 
 /*!

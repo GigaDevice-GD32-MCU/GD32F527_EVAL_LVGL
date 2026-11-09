@@ -2,7 +2,7 @@
     \file    gd32f527_adc.c
     \brief   ADC driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -87,6 +87,7 @@ void adc_deinit(void)
 */
 void adc_clock_config(uint32_t prescaler)
 {
+    rcu_periph_clock_enable(RCU_ADC0);
     ADC_SYNCCTL &= ~((uint32_t)ADC_SYNCCTL_ADCCK);
     ADC_SYNCCTL |= (uint32_t) prescaler;
 }

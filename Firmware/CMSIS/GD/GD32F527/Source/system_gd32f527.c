@@ -43,9 +43,9 @@
 //#define __SYSTEM_CLOCK_168M_PLL_IRC16M          (uint32_t)(168000000)
 //#define __SYSTEM_CLOCK_168M_PLL_8M_HXTAL        (uint32_t)(168000000)
 //#define __SYSTEM_CLOCK_168M_PLL_25M_HXTAL       (uint32_t)(168000000)
-#define __SYSTEM_CLOCK_200M_PLL_IRC16M          (uint32_t)(200000000)
+//#define __SYSTEM_CLOCK_200M_PLL_IRC16M          (uint32_t)(200000000)
 //#define __SYSTEM_CLOCK_200M_PLL_8M_HXTAL        (uint32_t)(200000000)
-//#define __SYSTEM_CLOCK_200M_PLL_25M_HXTAL       (uint32_t)(200000000)
+#define __SYSTEM_CLOCK_200M_PLL_25M_HXTAL       (uint32_t)(200000000)
 
 /* The following is to prevent Vcore fluctuations caused by frequency switching. 
    It is strongly recommended to include it to avoid issues caused by self-removal. */
@@ -156,9 +156,6 @@ void SystemInit (void)
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1U)
     SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
 #endif
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk |
-                  SCB_SHCSR_BUSFAULTENA_Msk |
-                  SCB_SHCSR_USGFAULTENA_Msk;
     /* Reset the RCU clock configuration to the default reset state */
     /* Set IRC16MEN bit */
     RCU_CTL |= RCU_CTL_IRC16MEN;

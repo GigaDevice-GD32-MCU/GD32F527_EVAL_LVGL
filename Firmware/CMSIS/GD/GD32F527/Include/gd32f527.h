@@ -2,7 +2,7 @@
     \file    gd32f527.h
     \brief   general definitions for GD32F527
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -77,7 +77,7 @@ extern "C" {
 
 /* GD32F527 firmware library version number */
 #define __GD32F527_STDPERIPH_VERSION_MAIN   (0x01) /*!< [31:24] main version     */
-#define __GD32F527_STDPERIPH_VERSION_SUB1   (0x04) /*!< [23:16] sub1 version     */
+#define __GD32F527_STDPERIPH_VERSION_SUB1   (0x05) /*!< [23:16] sub1 version     */
 #define __GD32F527_STDPERIPH_VERSION_SUB2   (0x00) /*!< [15:8]  sub2 version     */
 #define __GD32F527_STDPERIPH_VERSION_RC     (0x00) /*!< [7:0]   release candidate */
 #define __GD32F527_STDPERIPH_VERSION        ((__GD32F527_STDPERIPH_VERSION_MAIN << 24)\
