@@ -12,6 +12,9 @@
 #include "gd32f527.h"
 #include "lv_file_browse.h"
 
+/* lv_win / lv_menu / lv_list are deprecated in LVGL v9.6 but still functional */
+LV_DEPRECATIONS_IGNORE_BEGIN
+
 extern Folder_btnArray *p;
 extern File_btnArray *q;
 extern char file_name[FILE_NUM][NAME_LENGTH];//�ļ���
@@ -29,8 +32,8 @@ char *pname;
 /*********************
  *      DEFINES
  *********************/
-LV_IMG_DECLARE(image_file_28);
-LV_IMG_DECLARE(image_folder_28);
+LV_IMAGE_DECLARE(image_file_28);
+LV_IMAGE_DECLARE(image_folder_28);
 lv_obj_t *win;
 
 /* �ļ���������ؼ� */
@@ -57,7 +60,7 @@ static void fb_apply_action(void *data)
     fb_pending_action = FB_ACT_NONE;
 
     if(win) {
-        lv_obj_del(win);
+        lv_obj_delete(win);
         win = NULL;
         back_btn = NULL;
     }
@@ -80,7 +83,7 @@ static void fb_apply_action(void *data)
         strncpy(mountsel, "0:", 3);
         mf_scan_file(mountsel);
         if(obj_performance) {
-            lv_obj_clear_flag(obj_performance, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(obj_performance, false);
         }
         break;
 
@@ -103,7 +106,7 @@ static void fb_request_action(fb_action_t act, const char *name)
     }
 
     fb_pending_action = act;
-    if(lv_async_call(fb_apply_action, NULL) != LV_RES_OK) {
+    if(lv_async_call(fb_apply_action, NULL) != LV_RESULT_OK) {
         fb_pending_action = FB_ACT_NONE;
     }
 }
@@ -125,13 +128,13 @@ static void filelist_btnback_handler(lv_event_t *event)
 void filelist_btnevent_handler(lv_event_t *event)
 {
     lv_event_code_t code = lv_event_get_code(event);
-    lv_obj_t *obj = lv_event_get_target(event);
+    lv_obj_t *obj = lv_event_get_target_obj(event);
     lv_obj_t *list1 = lv_obj_get_parent(obj);
 
     switch(code) {
     case LV_EVENT_LONG_PRESSED:
     case LV_EVENT_RELEASED: {
-        pname = (char *)lv_list_get_btn_text(list1, obj);
+        pname = (char *)lv_list_get_button_text(list1, obj);
         fb_request_action(FB_ACT_ENTER, pname);
     }
     break;
@@ -147,10 +150,10 @@ void file_browse_event_cb(lv_event_t *event)
         return;
     }
 
-    lv_obj_add_flag(obj_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(obj_performance, true);
 #if 0
     /*Create a list*/
-    list1 = lv_list_create(lv_scr_act());
+    list1 = lv_list_create(lv_screen_active());
     lv_obj_set_size(list1, 180, 220);
     lv_obj_center(list1);
 
@@ -158,31 +161,31 @@ void file_browse_event_cb(lv_event_t *event)
     lv_obj_t *btn;
 
     lv_list_add_text(list1, "File");
-    btn = lv_list_add_btn(list1, LV_SYMBOL_FILE, "New");
+    btn = lv_list_add_button(list1, LV_SYMBOL_FILE, "New");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_DIRECTORY, "Open");
+    btn = lv_list_add_button(list1, LV_SYMBOL_DIRECTORY, "Open");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_SAVE, "Save");
+    btn = lv_list_add_button(list1, LV_SYMBOL_SAVE, "Save");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_CLOSE, "Delete");
+    btn = lv_list_add_button(list1, LV_SYMBOL_CLOSE, "Delete");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_EDIT, "Edit");
+    btn = lv_list_add_button(list1, LV_SYMBOL_EDIT, "Edit");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
 
     lv_list_add_text(list1, "Connectivity");
-    btn = lv_list_add_btn(list1, LV_SYMBOL_BLUETOOTH, "Bluetooth");
+    btn = lv_list_add_button(list1, LV_SYMBOL_BLUETOOTH, "Bluetooth");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_GPS, "Navigation");
+    btn = lv_list_add_button(list1, LV_SYMBOL_GPS, "Navigation");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_USB, "USB");
+    btn = lv_list_add_button(list1, LV_SYMBOL_USB, "USB");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_BATTERY_FULL, "Battery");
+    btn = lv_list_add_button(list1, LV_SYMBOL_BATTERY_FULL, "Battery");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
 
     lv_list_add_text(list1, "Exit");
-    btn = lv_list_add_btn(list1, LV_SYMBOL_OK, "Apply");
+    btn = lv_list_add_button(list1, LV_SYMBOL_OK, "Apply");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
-    btn = lv_list_add_btn(list1, LV_SYMBOL_CLOSE, "Close");
+    btn = lv_list_add_button(list1, LV_SYMBOL_CLOSE, "Close");
     lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
 #endif
     mf_scan_file(mountsel);
@@ -197,12 +200,12 @@ void file_browse_event_cb(lv_event_t *event)
     q->filelen = file_cnt;
 
     for(i = 0; i < p->folderlen; i++) {
-        p->Folder_btn[i] = lv_list_add_btn(ui->file_browse_filelist, &_wenjianjia_20x20,
+        p->Folder_btn[i] = lv_list_add_button(ui->file_browse_filelist, &_wenjianjia_20x20,
                                            folder_name[i]);
         lv_obj_set_event_cb(p->Folder_btn[i], filelist_btnevent_handler);
     }
     for(j = 0; j < q->filelen; j++) {
-        q->File_btn[j] = lv_list_add_btn(ui->file_browse_filelist, &_wenjiankongxin_20x20, file_name[j]);
+        q->File_btn[j] = lv_list_add_button(ui->file_browse_filelist, &_wenjiankongxin_20x20, file_name[j]);
         lv_obj_set_event_cb(q->File_btn[j], file_btnevent_handler);
     }
     /***************/
@@ -225,11 +228,12 @@ void events_init_file_browse(void)
 
 void setup_scr_file_browse(void)
 {
-    win = lv_win_create(lv_scr_act(), 40);
+    win = lv_win_create(lv_screen_active());
+    lv_obj_set_height(lv_win_get_header(win), 40);
     lv_obj_set_size(win, 480, 272);
     lv_obj_set_style_radius(win, 8, LV_PART_MAIN);
 
-    lv_obj_clear_flag(win, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(win, false);
     lv_obj_align(win, LV_ALIGN_CENTER, 0, 0);
 
     /* Make the window's content area vertically scrollable */
@@ -238,17 +242,17 @@ void setup_scr_file_browse(void)
     lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_AUTO);
 
     if(strcmp(mountsel, (char *)(current_path)) != 0) {
-        back_btn = lv_win_add_btn(win, LV_SYMBOL_LEFT, 40);
+        back_btn = lv_win_add_button(win, LV_SYMBOL_LEFT, 40);
         lv_obj_add_event_cb(back_btn, filelist_btnback_handler, LV_EVENT_CLICKED, NULL);
     }
     lv_win_add_title(win, "");
-    lv_obj_t *close_btn = lv_win_add_btn(win, LV_SYMBOL_CLOSE, 60);
+    lv_obj_t *close_btn = lv_win_add_button(win, LV_SYMBOL_CLOSE, 60);
     lv_obj_set_ext_click_area(close_btn, LV_DPX(10));
     lv_obj_add_event_cb(close_btn, win_close_click_event_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *label = lv_label_create(close_btn);
     lv_label_set_text(label, LV_SYMBOL_CLOSE);
     const lv_font_t *font = lv_obj_get_style_text_font(close_btn, LV_PART_MAIN);
-    lv_coord_t close_btn_size = lv_font_get_line_height(font) + LV_DPX(10);
+    int32_t close_btn_size = lv_font_get_line_height(font) + LV_DPX(10);
     lv_obj_set_size(close_btn, close_btn_size, close_btn_size);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_align(close_btn, LV_ALIGN_TOP_RIGHT, 0, 0);
@@ -311,15 +315,17 @@ void setup_scr_file_browse(void)
     q->filelen = file_cnt;
 
     for(int i = 0; i < p->folderlen; i++) {
-        p->Folder_btn[i] = lv_list_add_btn(file_list, &image_folder_28,
+        p->Folder_btn[i] = lv_list_add_button(file_list, &image_folder_28,
                                            folder_name[i]);
         lv_obj_add_event_cb(p->Folder_btn[i], filelist_btnevent_handler, LV_EVENT_RELEASED, NULL);
     }
     for(int j = 0; j < q->filelen; j++) {
-        q->File_btn[j] = lv_list_add_btn(file_list, &image_file_28, file_name[j]);
+        q->File_btn[j] = lv_list_add_button(file_list, &image_file_28, file_name[j]);
     }
 }
 
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+
+LV_DEPRECATIONS_IGNORE_END

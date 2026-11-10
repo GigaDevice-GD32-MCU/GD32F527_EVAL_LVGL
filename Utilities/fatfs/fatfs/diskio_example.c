@@ -11,8 +11,6 @@
 #include "diskio.h"		/* Declarations FatFs MAI */
 
 /* Example: Declarations of the platform and disk functions in the project */
-#include "platform.h"
-#include "storage.h"
 
 /* Example: Mapping of physical drive number for each drive */
 #define DEV_FLASH	0	/* Map FTL to physical drive 0 */
@@ -32,22 +30,22 @@ DSTATUS disk_status (
 	int result;
 
 	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_status();
+	case DEV_FLASH :
+		// result = RAM_disk_status();
 
 		// translate the reslut code here
 
 		return stat;
 
 	case DEV_MMC :
-		result = MMC_disk_status();
+		// result = MMC_disk_status();
 
 		// translate the reslut code here
 
 		return stat;
 
 	case DEV_USB :
-		result = USB_disk_status();
+		// result = USB_disk_status();
 
 		// translate the reslut code here
 
@@ -70,22 +68,22 @@ DSTATUS disk_initialize (
 	int result;
 
 	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_initialize();
+	case DEV_FLASH :
+		// result = RAM_disk_initialize();
 
 		// translate the reslut code here
 
 		return stat;
 
 	case DEV_MMC :
-		result = MMC_disk_initialize();
+		// result = MMC_disk_initialize();
 
 		// translate the reslut code here
 
 		return stat;
 
 	case DEV_USB :
-		result = USB_disk_initialize();
+		// result = USB_disk_initialize();
 
 		// translate the reslut code here
 
@@ -111,10 +109,10 @@ DRESULT disk_read (
 	int result;
 
 	switch (pdrv) {
-	case DEV_RAM :
+	case DEV_FLASH :
 		// translate the arguments here
 
-		result = RAM_disk_read(buff, sector, count);
+		// result = FLASH_disk_read(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -123,7 +121,7 @@ DRESULT disk_read (
 	case DEV_MMC :
 		// translate the arguments here
 
-		result = MMC_disk_read(buff, sector, count);
+		// result = MMC_disk_read(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -132,7 +130,7 @@ DRESULT disk_read (
 	case DEV_USB :
 		// translate the arguments here
 
-		result = USB_disk_read(buff, sector, count);
+		// result = USB_disk_read(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -161,10 +159,10 @@ DRESULT disk_write (
 	int result;
 
 	switch (pdrv) {
-	case DEV_RAM :
+	case DEV_FLASH :
 		// translate the arguments here
 
-		result = RAM_disk_write(buff, sector, count);
+		// result = FLASH_disk_write(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -173,7 +171,7 @@ DRESULT disk_write (
 	case DEV_MMC :
 		// translate the arguments here
 
-		result = MMC_disk_write(buff, sector, count);
+		// result = MMC_disk_write(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -182,7 +180,7 @@ DRESULT disk_write (
 	case DEV_USB :
 		// translate the arguments here
 
-		result = USB_disk_write(buff, sector, count);
+		// result = USB_disk_write(buff, sector, count);
 
 		// translate the reslut code here
 
@@ -209,7 +207,7 @@ DRESULT disk_ioctl (
 	int result;
 
 	switch (pdrv) {
-	case DEV_RAM :
+	case DEV_FLASH :
 
 		// Process of the command for the RAM drive
 
@@ -231,3 +229,12 @@ DRESULT disk_ioctl (
 	return RES_PARERR;
 }
 
+DWORD get_fattime(void) {
+    /* 返回当前时间戳 */
+    return    ((DWORD)(2026 - 1980) << 25)    /* Year 2019 */
+            | ((DWORD)1 << 21)                /* Month 1 */
+            | ((DWORD)1 << 16)                /* Mday 1 */
+            | ((DWORD)0 << 11)                /* Hour 0 */
+            | ((DWORD)0 << 5)                 /* Min 0 */
+            | ((DWORD)0 >> 1);                /* Sec 0 */
+}

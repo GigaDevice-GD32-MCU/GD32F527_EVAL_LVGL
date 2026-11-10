@@ -713,28 +713,12 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
     .kern_classes = 0,
 };
 
-static const uint8_t *german_arial_reg_10_get_bitmap(const lv_font_t *font, uint32_t unicode_letter)
-{
-    lv_font_fmt_txt_dsc_t *font_dsc = (lv_font_fmt_txt_dsc_t *)font->dsc;
-
-    if(unicode_letter < font_dsc->cmaps[0].range_start) return NULL;
-
-    for(uint32_t glyph_index = 0; font_dsc->cmaps[0].unicode_list[glyph_index] != 0; glyph_index++) {
-        if(font_dsc->cmaps[0].unicode_list[glyph_index] == unicode_letter) {
-            const lv_font_fmt_txt_glyph_dsc_t *glyph_dsc = &font_dsc->glyph_dsc[glyph_index];
-            return &font_dsc->glyph_bitmap[glyph_dsc->bitmap_index];
-        }
-    }
-
-    return NULL;
-}
-
 static bool german_arial_reg_10_get_glyph_dsc(const lv_font_t *font, lv_font_glyph_dsc_t *dsc_out,
                                               uint32_t unicode_letter, uint32_t unicode_letter_next)
 {
     LV_UNUSED(unicode_letter_next);
 
-    lv_font_fmt_txt_dsc_t *font_dsc = (lv_font_fmt_txt_dsc_t *)font->dsc;
+    const lv_font_fmt_txt_dsc_t *font_dsc = (const lv_font_fmt_txt_dsc_t *)font->dsc;
 
     if(unicode_letter < font_dsc->cmaps[0].range_start) return false;
 
@@ -746,7 +730,10 @@ static bool german_arial_reg_10_get_glyph_dsc(const lv_font_t *font, lv_font_gly
             dsc_out->box_w = glyph_dsc->box_w;
             dsc_out->ofs_x = glyph_dsc->ofs_x;
             dsc_out->ofs_y = glyph_dsc->ofs_y;
-            dsc_out->bpp = font_dsc->bpp;
+            dsc_out->format = (lv_font_glyph_format_t)font_dsc->bpp;
+            dsc_out->stride = 0;
+            dsc_out->is_placeholder = 0;
+            dsc_out->gid.index = glyph_index;
             return true;
         }
     }
@@ -761,7 +748,7 @@ static bool german_arial_reg_10_get_glyph_dsc(const lv_font_t *font, lv_font_gly
 //使用排序和二分查表
 const lv_font_t german_arial_reg_10 = {
     .dsc = &font_dsc,
-    .get_glyph_bitmap = german_arial_reg_10_get_bitmap,
+    .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,
     .get_glyph_dsc = german_arial_reg_10_get_glyph_dsc,
     .line_height = 16,
     .base_line = 0,

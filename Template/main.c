@@ -64,6 +64,10 @@ OF SUCH DAMAGE.
     #include "taskmain.h"
 #endif
 
+#if LV_USE_DRAW_IPA
+    #include "gigadevice/ipa/lv_draw_ipa.h"
+#endif
+
 uint16_t back_to_home = 1;
 float g_temperature = 0;
 
@@ -97,13 +101,18 @@ int main(void)
 #if SYS_configUSE_LVGL
     exmc_synchronous_dynamic_ram_init(EXMC_SDRAM_DEVICE0);
     lv_init();
+
+    #if LV_USE_DRAW_IPA
+        lv_draw_ipa_init();
+    #endif
+
     lv_port_disp_init();
     lv_port_indev_init();
 #endif
 
 
  #if SYS_configUSE_FAT32FS
-     lv_fs_fatfs_init();
+     /* LVGL v9 registers the FatFs driver (LV_USE_FS_FATFS) in lv_init() */
      scanfiles_test();
  #endif
 
@@ -136,7 +145,7 @@ int main(void)
          }
      #endif
  #if SYS_configUSE_LVGL
-         lv_task_handler();
+         lv_timer_handler();
  #endif
 
  #if SYS_configUSE_WATCHDOG
