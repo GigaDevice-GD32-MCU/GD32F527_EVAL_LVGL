@@ -2,7 +2,7 @@
     \file    gd32f527_syscfg.c
     \brief   SYSCFG driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -193,11 +193,13 @@ void syscfg_compensation_config(uint32_t syscfg_compensation)
 */
 FlagStatus syscfg_cps_cell_ready_get(void)
 {
+    FlagStatus reval = RESET;
     if(SYSCFG_CPSCTL & SYSCFG_CPSCTL_CPS_RDY){
-        return SET;
+        reval = SET;
     }else{
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!
@@ -320,12 +322,14 @@ uint32_t syscfg_ecc_address_get(syscfg_ecc_enum ecc_type)
 */
 FlagStatus syscfg_flag_get(syscfg_flag_enum flag)
 {
+    FlagStatus reval = RESET;
     /* get flag and interrupt enable state */
     if(RESET != (SYSCFG_STAT & (uint32_t)flag)) {
-        return SET;
+        reval = SET;
     } else {
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!
@@ -433,12 +437,14 @@ void syscfg_interrupt_disable(syscfg_interrupt_enum interrupt)
 */
 FlagStatus syscfg_interrupt_flag_get(syscfg_interrupt_flag_enum flag)
 {
+    FlagStatus reval = RESET;
     /* get flag and interrupt enable state */
     if(RESET != (SYSCFG_STAT & (uint32_t)flag)) {
-        return SET;
+        reval = SET;
     } else {
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!

@@ -2,7 +2,7 @@
     \file    gd32f527_can.h
     \brief   definitions for the CAN
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -716,6 +716,118 @@ typedef enum {
 #define CAN_BT_BS1_14TQ                    ((uint8_t)0x0DU)             /*!< 14 time quanta */
 #define CAN_BT_BS1_15TQ                    ((uint8_t)0x0EU)             /*!< 15 time quanta */
 #define CAN_BT_BS1_16TQ                    ((uint8_t)0x0FU)             /*!< 16 time quanta */
+#define CAN_BT_BS1_17TQ                    ((uint8_t)0x10U)             /*!< 17 time quanta */
+#define CAN_BT_BS1_18TQ                    ((uint8_t)0x11U)             /*!< 18 time quanta */
+#define CAN_BT_BS1_19TQ                    ((uint8_t)0x12U)             /*!< 19 time quanta */
+#define CAN_BT_BS1_20TQ                    ((uint8_t)0x13U)             /*!< 20 time quanta */
+#define CAN_BT_BS1_21TQ                    ((uint8_t)0x14U)             /*!< 21 time quanta */
+#define CAN_BT_BS1_22TQ                    ((uint8_t)0x15U)             /*!< 22 time quanta */
+#define CAN_BT_BS1_23TQ                    ((uint8_t)0x16U)             /*!< 23 time quanta */
+#define CAN_BT_BS1_24TQ                    ((uint8_t)0x17U)             /*!< 24 time quanta */
+#define CAN_BT_BS1_25TQ                    ((uint8_t)0x18U)             /*!< 25 time quanta */
+#define CAN_BT_BS1_26TQ                    ((uint8_t)0x19U)             /*!< 26 time quanta */
+#define CAN_BT_BS1_27TQ                    ((uint8_t)0x1AU)             /*!< 27 time quanta */
+#define CAN_BT_BS1_28TQ                    ((uint8_t)0x1BU)             /*!< 28 time quanta */
+#define CAN_BT_BS1_29TQ                    ((uint8_t)0x1CU)             /*!< 29 time quanta */
+#define CAN_BT_BS1_30TQ                    ((uint8_t)0x1DU)             /*!< 30 time quanta */
+#define CAN_BT_BS1_31TQ                    ((uint8_t)0x1EU)             /*!< 31 time quanta */
+#define CAN_BT_BS1_32TQ                    ((uint8_t)0x1FU)             /*!< 32 time quanta */
+#define CAN_BT_BS1_33TQ                    ((uint8_t)0x20U)             /*!< 33 time quanta */
+#define CAN_BT_BS1_34TQ                    ((uint8_t)0x21U)             /*!< 34 time quanta */
+#define CAN_BT_BS1_35TQ                    ((uint8_t)0x22U)             /*!< 35 time quanta */
+#define CAN_BT_BS1_36TQ                    ((uint8_t)0x23U)             /*!< 36 time quanta */
+#define CAN_BT_BS1_37TQ                    ((uint8_t)0x24U)             /*!< 37 time quanta */
+#define CAN_BT_BS1_38TQ                    ((uint8_t)0x25U)             /*!< 38 time quanta */
+#define CAN_BT_BS1_39TQ                    ((uint8_t)0x26U)             /*!< 39 time quanta */
+#define CAN_BT_BS1_40TQ                    ((uint8_t)0x27U)             /*!< 40 time quanta */
+#define CAN_BT_BS1_41TQ                    ((uint8_t)0x28U)             /*!< 41 time quanta */
+#define CAN_BT_BS1_42TQ                    ((uint8_t)0x29U)             /*!< 42 time quanta */
+#define CAN_BT_BS1_43TQ                    ((uint8_t)0x2AU)             /*!< 43 time quanta */
+#define CAN_BT_BS1_44TQ                    ((uint8_t)0x2BU)             /*!< 44 time quanta */
+#define CAN_BT_BS1_45TQ                    ((uint8_t)0x2CU)             /*!< 45 time quanta */
+#define CAN_BT_BS1_46TQ                    ((uint8_t)0x2DU)             /*!< 46 time quanta */
+#define CAN_BT_BS1_47TQ                    ((uint8_t)0x2EU)             /*!< 47 time quanta */
+#define CAN_BT_BS1_48TQ                    ((uint8_t)0x2FU)             /*!< 48 time quanta */
+#define CAN_BT_BS1_49TQ                    ((uint8_t)0x30U)             /*!< 49 time quanta */
+#define CAN_BT_BS1_50TQ                    ((uint8_t)0x31U)             /*!< 50 time quanta */
+#define CAN_BT_BS1_51TQ                    ((uint8_t)0x32U)             /*!< 51 time quanta */
+#define CAN_BT_BS1_52TQ                    ((uint8_t)0x33U)             /*!< 52 time quanta */
+#define CAN_BT_BS1_53TQ                    ((uint8_t)0x34U)             /*!< 53 time quanta */
+#define CAN_BT_BS1_54TQ                    ((uint8_t)0x35U)             /*!< 54 time quanta */
+#define CAN_BT_BS1_55TQ                    ((uint8_t)0x36U)             /*!< 55 time quanta */
+#define CAN_BT_BS1_56TQ                    ((uint8_t)0x37U)             /*!< 56 time quanta */
+#define CAN_BT_BS1_57TQ                    ((uint8_t)0x38U)             /*!< 57 time quanta */
+#define CAN_BT_BS1_58TQ                    ((uint8_t)0x39U)             /*!< 58 time quanta */
+#define CAN_BT_BS1_59TQ                    ((uint8_t)0x3AU)             /*!< 59 time quanta */
+#define CAN_BT_BS1_60TQ                    ((uint8_t)0x3BU)             /*!< 60 time quanta */
+#define CAN_BT_BS1_61TQ                    ((uint8_t)0x3CU)             /*!< 61 time quanta */
+#define CAN_BT_BS1_62TQ                    ((uint8_t)0x3DU)             /*!< 62 time quanta */
+#define CAN_BT_BS1_63TQ                    ((uint8_t)0x3EU)             /*!< 63 time quanta */
+#define CAN_BT_BS1_64TQ                    ((uint8_t)0x3FU)             /*!< 64 time quanta */
+#define CAN_BT_BS1_65TQ                    ((uint8_t)0x40U)             /*!< 65 time quanta */
+#define CAN_BT_BS1_66TQ                    ((uint8_t)0x41U)             /*!< 66 time quanta */
+#define CAN_BT_BS1_67TQ                    ((uint8_t)0x42U)             /*!< 67 time quanta */
+#define CAN_BT_BS1_68TQ                    ((uint8_t)0x43U)             /*!< 68 time quanta */
+#define CAN_BT_BS1_69TQ                    ((uint8_t)0x44U)             /*!< 69 time quanta */
+#define CAN_BT_BS1_70TQ                    ((uint8_t)0x45U)             /*!< 70 time quanta */
+#define CAN_BT_BS1_71TQ                    ((uint8_t)0x46U)             /*!< 71 time quanta */
+#define CAN_BT_BS1_72TQ                    ((uint8_t)0x47U)             /*!< 72 time quanta */
+#define CAN_BT_BS1_73TQ                    ((uint8_t)0x48U)             /*!< 73 time quanta */
+#define CAN_BT_BS1_74TQ                    ((uint8_t)0x49U)             /*!< 74 time quanta */
+#define CAN_BT_BS1_75TQ                    ((uint8_t)0x4AU)             /*!< 75 time quanta */
+#define CAN_BT_BS1_76TQ                    ((uint8_t)0x4BU)             /*!< 76 time quanta */
+#define CAN_BT_BS1_77TQ                    ((uint8_t)0x4CU)             /*!< 77 time quanta */
+#define CAN_BT_BS1_78TQ                    ((uint8_t)0x4DU)             /*!< 78 time quanta */
+#define CAN_BT_BS1_79TQ                    ((uint8_t)0x4EU)             /*!< 79 time quanta */
+#define CAN_BT_BS1_80TQ                    ((uint8_t)0x4FU)             /*!< 80 time quanta */
+#define CAN_BT_BS1_81TQ                    ((uint8_t)0x50U)             /*!< 81 time quanta */
+#define CAN_BT_BS1_82TQ                    ((uint8_t)0x51U)             /*!< 82 time quanta */
+#define CAN_BT_BS1_83TQ                    ((uint8_t)0x52U)             /*!< 83 time quanta */
+#define CAN_BT_BS1_84TQ                    ((uint8_t)0x53U)             /*!< 84 time quanta */
+#define CAN_BT_BS1_85TQ                    ((uint8_t)0x54U)             /*!< 85 time quanta */
+#define CAN_BT_BS1_86TQ                    ((uint8_t)0x55U)             /*!< 86 time quanta */
+#define CAN_BT_BS1_87TQ                    ((uint8_t)0x56U)             /*!< 87 time quanta */
+#define CAN_BT_BS1_88TQ                    ((uint8_t)0x57U)             /*!< 88 time quanta */
+#define CAN_BT_BS1_89TQ                    ((uint8_t)0x58U)             /*!< 89 time quanta */
+#define CAN_BT_BS1_90TQ                    ((uint8_t)0x59U)             /*!< 90 time quanta */
+#define CAN_BT_BS1_91TQ                    ((uint8_t)0x5AU)             /*!< 91 time quanta */
+#define CAN_BT_BS1_92TQ                    ((uint8_t)0x5BU)             /*!< 92 time quanta */
+#define CAN_BT_BS1_93TQ                    ((uint8_t)0x5CU)             /*!< 93 time quanta */
+#define CAN_BT_BS1_94TQ                    ((uint8_t)0x5DU)             /*!< 94 time quanta */
+#define CAN_BT_BS1_95TQ                    ((uint8_t)0x5EU)             /*!< 95 time quanta */
+#define CAN_BT_BS1_96TQ                    ((uint8_t)0x5FU)             /*!< 96 time quanta */
+#define CAN_BT_BS1_97TQ                    ((uint8_t)0x60U)             /*!< 97 time quanta */
+#define CAN_BT_BS1_98TQ                    ((uint8_t)0x61U)             /*!< 98 time quanta */
+#define CAN_BT_BS1_99TQ                    ((uint8_t)0x62U)             /*!< 99 time quanta */
+#define CAN_BT_BS1_100TQ                   ((uint8_t)0x63U)             /*!< 100 time quanta */
+#define CAN_BT_BS1_101TQ                   ((uint8_t)0x64U)             /*!< 101 time quanta */
+#define CAN_BT_BS1_102TQ                   ((uint8_t)0x65U)             /*!< 102 time quanta */
+#define CAN_BT_BS1_103TQ                   ((uint8_t)0x66U)             /*!< 103 time quanta */
+#define CAN_BT_BS1_104TQ                   ((uint8_t)0x67U)             /*!< 104 time quanta */
+#define CAN_BT_BS1_105TQ                   ((uint8_t)0x68U)             /*!< 105 time quanta */
+#define CAN_BT_BS1_106TQ                   ((uint8_t)0x69U)             /*!< 106 time quanta */
+#define CAN_BT_BS1_107TQ                   ((uint8_t)0x6AU)             /*!< 107 time quanta */
+#define CAN_BT_BS1_108TQ                   ((uint8_t)0x6BU)             /*!< 108 time quanta */
+#define CAN_BT_BS1_109TQ                   ((uint8_t)0x6CU)             /*!< 109 time quanta */
+#define CAN_BT_BS1_110TQ                   ((uint8_t)0x6DU)             /*!< 110 time quanta */
+#define CAN_BT_BS1_111TQ                   ((uint8_t)0x6EU)             /*!< 111 time quanta */
+#define CAN_BT_BS1_112TQ                   ((uint8_t)0x6FU)             /*!< 112 time quanta */
+#define CAN_BT_BS1_113TQ                   ((uint8_t)0x70U)             /*!< 113 time quanta */
+#define CAN_BT_BS1_114TQ                   ((uint8_t)0x71U)             /*!< 114 time quanta */
+#define CAN_BT_BS1_115TQ                   ((uint8_t)0x72U)             /*!< 115 time quanta */
+#define CAN_BT_BS1_116TQ                   ((uint8_t)0x73U)             /*!< 116 time quanta */
+#define CAN_BT_BS1_117TQ                   ((uint8_t)0x74U)             /*!< 117 time quanta */
+#define CAN_BT_BS1_118TQ                   ((uint8_t)0x75U)             /*!< 118 time quanta */
+#define CAN_BT_BS1_119TQ                   ((uint8_t)0x76U)             /*!< 119 time quanta */
+#define CAN_BT_BS1_120TQ                   ((uint8_t)0x77U)             /*!< 120 time quanta */
+#define CAN_BT_BS1_121TQ                   ((uint8_t)0x78U)             /*!< 121 time quanta */
+#define CAN_BT_BS1_122TQ                   ((uint8_t)0x79U)             /*!< 122 time quanta */
+#define CAN_BT_BS1_123TQ                   ((uint8_t)0x7AU)             /*!< 123 time quanta */
+#define CAN_BT_BS1_124TQ                   ((uint8_t)0x7BU)             /*!< 124 time quanta */
+#define CAN_BT_BS1_125TQ                   ((uint8_t)0x7CU)             /*!< 125 time quanta */
+#define CAN_BT_BS1_126TQ                   ((uint8_t)0x7DU)             /*!< 126 time quanta */
+#define CAN_BT_BS1_127TQ                   ((uint8_t)0x7EU)             /*!< 127 time quanta */
+#define CAN_BT_BS1_128TQ                   ((uint8_t)0x7FU)             /*!< 128 time quanta */
 
 /* CAN time segment 2 */
 #define CAN_BT_BS2_1TQ                     ((uint8_t)0x00U)             /*!< 1 time quanta */

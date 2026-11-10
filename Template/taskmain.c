@@ -4,7 +4,7 @@
 #if SYS_configUSE_FREERTOS
 
 #include "taskmain.h"
-#include "lv_api_map.h"
+#include "lvgl.h"
 #include "bsp_adc.h"
 
 /* ========== 任务句柄定义 ========== */

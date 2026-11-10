@@ -2,7 +2,7 @@
     \file    drv_usb_host.c
     \brief   USB host mode low level driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -234,7 +234,7 @@ usb_status usb_pipe_init(usb_core_driver *udev, uint8_t pipe_num)
     case USB_EPTYPE_CTRL:
     case USB_EPTYPE_BULK:
         pp_inten |= HCHINTEN_STALLIE | HCHINTEN_USBERIE \
-                    | HCHINTEN_DTERIE | HCHINTEN_NAKIE;
+                    | HCHINTEN_DTERIE | HCHINTEN_NAKIE | HCHINTEN_REQOVRIE;
 
         if(!pp->ep.dir) {
             if(PORT_SPEED_HIGH == pp->dev_speed) {
@@ -296,6 +296,9 @@ usb_status usb_pipe_xfer(usb_core_driver *udev, uint8_t pipe_num)
     usb_status status = USB_OK;
 
     uint16_t dword_len = 0U;
+    uint32_t write_len = 0U;
+    uint16_t req_space = 0U;
+    uint32_t txfifostat = 0U;
     uint16_t packet_count = 0U;
 
     __IO uint32_t pp_ctl = 0U;
@@ -347,11 +350,28 @@ usb_status usb_pipe_xfer(usb_core_driver *udev, uint8_t pipe_num)
             /* non-periodic transfer */
             case USB_EPTYPE_CTRL:
             case USB_EPTYPE_BULK:
-                dword_len = (uint16_t)((pp->xfer_len + 3U) / 4U);
+                txfifostat = udev->regs.gr->HNPTFQSTAT;
+                req_space = (uint16_t)((txfifostat & HNPTFQSTAT_NPTXRQS) >> 16U);
 
-                /* check if there is enough space in FIFO space */
-                if(dword_len > (udev->regs.gr->HNPTFQSTAT & HNPTFQSTAT_NPTXFS)) {
-                    /* need to process data in nptxfempty interrupt */
+                /* write at most one packet when both request queue and TX FIFO can accept it */
+                if(req_space > 0U) {
+                    write_len = pp->xfer_len;
+                    if(write_len > max_packet_len * req_space) {
+                        write_len = max_packet_len * req_space;
+                    }
+
+                    dword_len = (uint16_t)((write_len + 3U) / 4U);
+                    if(dword_len > (txfifostat & HNPTFQSTAT_NPTXFS)) {
+                        write_len = (uint16_t)(4*(txfifostat & HNPTFQSTAT_NPTXFS));
+                    }
+
+                    usb_txfifo_write(&udev->regs, pp->xfer_buf, pipe_num, (uint16_t)write_len);
+                    pp->xfer_buf += write_len;
+                    pp->xfer_len -= write_len;
+                    pp->xfer_count += write_len;
+                }
+
+                if(pp->xfer_len > 0U) {
                     udev->regs.gr->GINTEN |= GINTEN_NPTXFEIE;
                 }
                 break;
@@ -359,11 +379,28 @@ usb_status usb_pipe_xfer(usb_core_driver *udev, uint8_t pipe_num)
             /* periodic transfer */
             case USB_EPTYPE_INTR:
             case USB_EPTYPE_ISOC:
-                dword_len = (uint16_t)((pp->xfer_len + 3U) / 4U);
+                txfifostat = udev->regs.hr->HPTFQSTAT;
+                req_space = (uint16_t)((txfifostat & HPTFQSTAT_PTXREQS) >> 16U);
 
-                /* check if there is enough space in FIFO space */
-                if(dword_len > (udev->regs.hr->HPTFQSTAT & HPTFQSTAT_PTXFS)) {
-                    /* need to process data in ptxfempty interrupt */
+                /* write at most one packet when both request queue and TX FIFO can accept it */
+                if(req_space > 0U) {
+                    write_len = pp->xfer_len;
+                    if(write_len > max_packet_len * req_space) {
+                        write_len = max_packet_len * req_space;
+                    }
+
+                    dword_len = (uint16_t)((write_len + 3U) / 4U);
+                    if(dword_len > (txfifostat & HPTFQSTAT_PTXFS)) {
+                        write_len = (uint16_t)(4*(txfifostat & HPTFQSTAT_PTXFS));
+                    }
+
+                    usb_txfifo_write(&udev->regs, pp->xfer_buf, pipe_num, (uint16_t)write_len);
+                    pp->xfer_buf += write_len;
+                    pp->xfer_len -= write_len;
+                    pp->xfer_count += write_len;
+                }
+
+                if(pp->xfer_len > 0U) {
                     udev->regs.gr->GINTEN |= GINTEN_PTXFEIE;
                 }
                 break;
@@ -371,9 +408,6 @@ usb_status usb_pipe_xfer(usb_core_driver *udev, uint8_t pipe_num)
             default:
                 break;
             }
-
-            /* write packet into the TX FIFO */
-            usb_txfifo_write(&udev->regs, pp->xfer_buf, pipe_num, (uint16_t)pp->xfer_len);
         }
     }
 
@@ -398,14 +432,14 @@ usb_status usb_pipe_halt(usb_core_driver *udev, uint8_t pipe_num)
     switch(ep_type) {
     case USB_EPTYPE_CTRL:
     case USB_EPTYPE_BULK:
-        if(0U == (udev->regs.gr->HNPTFQSTAT & HNPTFQSTAT_NPTXFS)) {
+        if(0U == ((udev->regs.gr->HNPTFQSTAT & HNPTFQSTAT_NPTXRQS) >> 16)) {
             pp_ctl &= ~HCHCTL_CEN;
         }
         break;
 
     case USB_EPTYPE_INTR:
     case USB_EPTYPE_ISOC:
-        if(0U == (udev->regs.hr->HPTFQSTAT & HPTFQSTAT_PTXFS)) {
+        if(0U == ((udev->regs.hr->HPTFQSTAT & HPTFQSTAT_PTXREQS) >> 16)) {
             pp_ctl &= ~HCHCTL_CEN;
         }
         break;

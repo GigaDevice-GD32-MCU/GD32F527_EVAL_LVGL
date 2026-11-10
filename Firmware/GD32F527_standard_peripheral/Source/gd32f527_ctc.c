@@ -2,7 +2,7 @@
     \file    gd32f527_ctc.c
     \brief   CTC driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -218,11 +218,13 @@ uint16_t ctc_counter_capture_value_read(void)
 */
 FlagStatus ctc_counter_direction_read(void)
 {
+    FlagStatus reval = RESET;
     if(RESET != (CTC_STAT & CTC_STAT_REFDIR)) {
-        return SET;
+        reval = SET;
     } else {
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!
@@ -300,6 +302,7 @@ void ctc_interrupt_disable(uint32_t interrupt)
 FlagStatus ctc_interrupt_flag_get(uint32_t int_flag)
 {
     uint32_t interrupt_flag = 0U, intenable = 0U;
+    FlagStatus reval = RESET;
 
     /* check whether the interrupt is enabled */
     if(RESET != (int_flag & CTC_FLAG_MASK)) {
@@ -312,10 +315,11 @@ FlagStatus ctc_interrupt_flag_get(uint32_t int_flag)
     interrupt_flag = CTC_STAT & int_flag;
 
     if(interrupt_flag && intenable) {
-        return SET;
+        reval = SET;
     } else {
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!
@@ -357,11 +361,13 @@ void ctc_interrupt_flag_clear(uint32_t int_flag)
 */
 FlagStatus ctc_flag_get(uint32_t flag)
 {
+    FlagStatus reval = RESET;
     if(RESET != (CTC_STAT & flag)) {
-        return SET;
+        reval = SET;
     } else {
-        return RESET;
+        reval = RESET;
     }
+    return reval;
 }
 
 /*!

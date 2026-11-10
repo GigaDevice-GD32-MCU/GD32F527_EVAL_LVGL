@@ -2,7 +2,7 @@
     \file    gd32f527_enet.c
     \brief   ENET driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -931,7 +931,7 @@ ErrStatus enet_frame_receive(uint8_t *buffer, uint32_t bufsize)
             dma_current_rxdesc = (enet_descriptors_struct *)(ENET_DMA_RDTADDR);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ETH_DMARXDESC_SIZE +
+            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ENET_DMARXDESC_SIZE +
                                  (GET_DMA_BCTL_DPSL(ENET_DMA_BCTL)));
         }
     }
@@ -999,7 +999,7 @@ ErrStatus enet_frame_transmit(uint8_t *buffer, uint32_t length)
             dma_current_txdesc = (enet_descriptors_struct *)(ENET_DMA_TDTADDR);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_txdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_txdesc + ETH_DMATXDESC_SIZE +
+            dma_current_txdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_txdesc + ENET_DMATXDESC_SIZE +
                                  (GET_DMA_BCTL_DPSL(ENET_DMA_BCTL)));
         }
     }
@@ -2245,7 +2245,7 @@ void enet_rxframe_drop(void)
             }
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ETH_DMARXDESC_SIZE +
+            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ENET_DMARXDESC_SIZE +
                                  GET_DMA_BCTL_DPSL(ENET_DMA_BCTL));
             if(NULL != dma_current_ptp_rxdesc) {
                 dma_current_ptp_rxdesc++;
@@ -2570,7 +2570,7 @@ ErrStatus enet_ptpframe_receive_enhanced_mode(uint8_t *buffer, uint32_t bufsize,
             dma_current_rxdesc = (enet_descriptors_struct *)(ENET_DMA_RDTADDR);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_rxdesc = (enet_descriptors_struct *)((uint32_t)dma_current_rxdesc + ETH_DMARXDESC_SIZE + GET_DMA_BCTL_DPSL(
+            dma_current_rxdesc = (enet_descriptors_struct *)((uint32_t)dma_current_rxdesc + ENET_DMARXDESC_SIZE + GET_DMA_BCTL_DPSL(
                                      ENET_DMA_BCTL));
         }
     }
@@ -2660,7 +2660,7 @@ ErrStatus enet_ptpframe_transmit_enhanced_mode(uint8_t *buffer, uint32_t length,
             dma_current_txdesc = (enet_descriptors_struct *)(ENET_DMA_TDTADDR);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_txdesc = (enet_descriptors_struct *)((uint32_t)dma_current_txdesc + ETH_DMATXDESC_SIZE + GET_DMA_BCTL_DPSL(
+            dma_current_txdesc = (enet_descriptors_struct *)((uint32_t)dma_current_txdesc + ENET_DMATXDESC_SIZE + GET_DMA_BCTL_DPSL(
                                      ENET_DMA_BCTL));
         }
     }
@@ -2930,7 +2930,7 @@ ErrStatus enet_ptpframe_receive_normal_mode(uint8_t *buffer, uint32_t bufsize, u
             dma_current_ptp_rxdesc = (enet_descriptors_struct *)(dma_current_ptp_rxdesc->status);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ETH_DMARXDESC_SIZE +
+            dma_current_rxdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_rxdesc + ENET_DMARXDESC_SIZE +
                                  GET_DMA_BCTL_DPSL(ENET_DMA_BCTL));
             dma_current_ptp_rxdesc ++;
         }
@@ -3032,7 +3032,7 @@ ErrStatus enet_ptpframe_transmit_normal_mode(uint8_t *buffer, uint32_t length, u
             dma_current_ptp_txdesc = (enet_descriptors_struct *)(dma_current_ptp_txdesc->status);
         } else {
             /* the next descriptor is the current address, add the descriptor size, and descriptor skip length */
-            dma_current_txdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_txdesc + ETH_DMATXDESC_SIZE +
+            dma_current_txdesc = (enet_descriptors_struct *)(uint32_t)((uint32_t)dma_current_txdesc + ENET_DMATXDESC_SIZE +
                                  GET_DMA_BCTL_DPSL(ENET_DMA_BCTL));
             dma_current_ptp_txdesc ++;
         }
@@ -3064,7 +3064,7 @@ void enet_wum_filter_config(uint32_t pdata[])
     uint32_t num = 0U;
 
     /* configure ENET_MAC_RWFF register */
-    for(num = 0U; num < ETH_WAKEUP_REGISTER_LENGTH; num++) {
+    for(num = 0U; num < ENET_WAKEUP_REGISTER_LENGTH; num++) {
         ENET_MAC_RWFF = pdata[num];
     }
 }

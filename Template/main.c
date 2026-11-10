@@ -56,7 +56,7 @@ OF SUCH DAMAGE.
 /* FatFs*/
 #if SYS_configUSE_FAT32FS
     #include "ff.h"
-    #include "GUI_APP/fatfs_file_browse.h"
+    #include "GUI_APP/ui_lvgl/fatfs_file_browse.h"
 #endif
 
 /* FreeRTOS*/

@@ -2,7 +2,7 @@
     \file    gd32f527_enet.h
     \brief   definitions for the ENET
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -1437,15 +1437,15 @@ typedef struct
 #define ENET_MSC_PRESET_MASK                      (~(ENET_MSC_CTL_PMC | ENET_MSC_CTL_AFHPM))    /*!< ENET_MSC_CTL preset mask */
 
 #ifdef SELECT_DESCRIPTORS_ENHANCED_MODE
-#define ETH_DMATXDESC_SIZE                        ((uint32_t)0x00000020U)                       /*!< TxDMA enhanced descriptor size */
-#define ETH_DMARXDESC_SIZE                        ((uint32_t)0x00000020U)                       /*!< RxDMA enhanced descriptor size */
+#define ENET_DMATXDESC_SIZE                        ((uint32_t)0x00000020U)                       /*!< TxDMA enhanced descriptor size */
+#define ENET_DMARXDESC_SIZE                        ((uint32_t)0x00000020U)                       /*!< RxDMA enhanced descriptor size */
 #else
-#define ETH_DMATXDESC_SIZE                        ((uint32_t)0x00000010U)                       /*!< TxDMA descriptor size */
-#define ETH_DMARXDESC_SIZE                        ((uint32_t)0x00000010U)                       /*!< RxDMA descriptor size */
+#define ENET_DMATXDESC_SIZE                        ((uint32_t)0x00000010U)                       /*!< TxDMA descriptor size */
+#define ENET_DMARXDESC_SIZE                        ((uint32_t)0x00000010U)                       /*!< RxDMA descriptor size */
 #endif /* SELECT_DESCRIPTORS_ENHANCED_MODE */ 
 
 /* ENET remote wake-up frame register length */
-#define ETH_WAKEUP_REGISTER_LENGTH                8U                                            /*!< remote wake-up frame register length */
+#define ENET_WAKEUP_REGISTER_LENGTH                8U                                            /*!< remote wake-up frame register length */
 
 /* ENET frame size */ 
 #define ENET_MAX_FRAME_SIZE                       1524U                                         /*!< header + frame_extra + payload + CRC */    

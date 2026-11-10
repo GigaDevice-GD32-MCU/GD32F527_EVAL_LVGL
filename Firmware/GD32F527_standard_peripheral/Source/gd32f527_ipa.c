@@ -2,7 +2,7 @@
     \file    gd32f527_ipa.c
     \brief   IPA driver
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
@@ -589,11 +589,13 @@ void ipa_interval_clock_num_config(uint8_t clk_num)
 */
 FlagStatus ipa_flag_get(uint32_t flag)
 {
+    FlagStatus retval = RESET;
     if(RESET != (IPA_INTF & flag)) {
-        return SET;
+        retval = SET;
     } else {
-        return RESET;
+        /* do nothing */
     }
+    return retval;
 }
 
 /*!

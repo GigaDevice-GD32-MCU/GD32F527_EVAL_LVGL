@@ -2,7 +2,7 @@
     \file    printer_core.h
     \brief   the header file of USB printer device class core functions
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*

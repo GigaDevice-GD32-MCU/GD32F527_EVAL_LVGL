@@ -2,7 +2,7 @@
     \file    gd32f527_i2c.h
     \brief   definitions for the I2C3-5
 
-    \version 2026-01-31, V1.4.0, firmware for GD32F527
+    \version 2026-08-19, V1.5.0, firmware for GD32F527
 */
 
 /*
