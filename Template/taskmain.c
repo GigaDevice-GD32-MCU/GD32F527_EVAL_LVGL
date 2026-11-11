@@ -64,7 +64,7 @@ void LVGL_GUI_TASK(void *pvParameters)
     uint32_t lvgl_delay = 1;
     while (1)
     {
-        lvgl_delay = lv_task_handler();
+        lvgl_delay = lv_timer_handler();
         vTaskDelay(lvgl_delay);
     }
 }

@@ -14,11 +14,7 @@
 extern "C" {
 #endif
 
-#if LVGL_VERSION_MAJOR == 7
-#include "lv_font/lv_font.h"
-#else
-#include "font/lv_font.h"
-#endif
+#include "lvgl.h"
 
 LV_FONT_DECLARE(lv_customer_font_SourceHanSerifSC_Regular_20)
 

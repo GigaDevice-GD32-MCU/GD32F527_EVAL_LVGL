@@ -21,8 +21,14 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
-#define LV_HOR_RES_MAX          (480)
-#define LV_VER_RES_MAX          (272)
+/* LCD resolution (GD32F527 EVAL board, 4.3 inch RGB LCD) */
+#define MY_DISP_HOR_RES         (480)
+#define MY_DISP_VER_RES         (272)
+
+/* Kept for the application code which used the v8 port */
+#define LV_HOR_RES_MAX          MY_DISP_HOR_RES
+#define LV_VER_RES_MAX          MY_DISP_VER_RES
+
 /**********************
  *      TYPEDEFS
  **********************/

@@ -16,35 +16,32 @@
 #endif
 #include "lv_about.h"
 #include "lv_port_disp.h"
-#include <music/lv_demo_music.h>
-#include <benchmark/lv_demo_benchmark.h>
 
 /*********************
  *      DEFINES
  *********************/
 #ifndef SCALE_POS_X
-#define SCALE_POS_X(x) ((lv_coord_t)((x) * LV_HOR_RES_MAX / 1024))
+#define SCALE_POS_X(x) ((int32_t)((x) * LV_HOR_RES_MAX / 1024))
 #endif
 #ifndef SCALE_POS_Y
-#define SCALE_POS_Y(y) ((lv_coord_t)((y) * LV_VER_RES_MAX / 600))
+#define SCALE_POS_Y(y) ((int32_t)((y) * LV_VER_RES_MAX / 600))
 #endif
 
-LV_IMG_DECLARE(img_background);
-LV_IMG_DECLARE(img_widget);
-LV_IMG_DECLARE(img_music);
-LV_IMG_DECLARE(img_speed);
-LV_IMG_DECLARE(img_about);
-LV_IMG_DECLARE(img_file);
-LV_IMG_DECLARE(img_qrcode);
-LV_IMG_DECLARE(img_home);
-LV_IMG_DECLARE(img_home_pressed);
-LV_IMG_DECLARE(img_gd_logo);
-LV_IMG_DECLARE(img_picture);
-LV_IMG_DECLARE(img_setting);
-LV_IMG_DECLARE(img_temp);
-LV_IMG_DECLARE(img_mem);
+LV_IMAGE_DECLARE(img_background);
+LV_IMAGE_DECLARE(img_widget);
+LV_IMAGE_DECLARE(img_music);
+LV_IMAGE_DECLARE(img_speed);
+LV_IMAGE_DECLARE(img_about);
+LV_IMAGE_DECLARE(img_file);
+LV_IMAGE_DECLARE(img_qrcode);
+LV_IMAGE_DECLARE(img_home);
+LV_IMAGE_DECLARE(img_home_pressed);
+LV_IMAGE_DECLARE(img_gd_logo);
+LV_IMAGE_DECLARE(img_picture);
+LV_IMAGE_DECLARE(img_setting);
+LV_IMAGE_DECLARE(img_temp);
+LV_IMAGE_DECLARE(img_mem);
 
-LV_FONT_DECLARE(lv_font_montserrat_8);
 LV_FONT_DECLARE(lv_font_digital_20);
 LV_FONT_DECLARE(lv_font_digital_30);
 
@@ -117,19 +114,64 @@ typedef enum {
 static app_demo_t active_demo = APP_DEMO_NONE;
 static bool return_home_pending;
 
+/* LVGL v9 demos have no close function. The widgets/music demos are created in
+ * demo_cont, the benchmark runs on its own screen (bench_scr). A home button is
+ * placed on lv_layer_top() to return to the main page. */
+static lv_obj_t *app_scr;
+static lv_obj_t *demo_cont;
+static lv_obj_t *bench_scr;
+static lv_obj_t *demo_home_btn;
+
 extern uint16_t back_to_home;
 
 extern float g_temperature;
 extern void update_main_page_language(void);
+extern void update_performance_labels(void);
 extern void lv_demo_qrcode(lv_obj_t *parent);
 extern void lv_demo_setting(lv_obj_t * parent);
 extern void lv_demo_picture(lv_obj_t * parent);
 void lv_demo_app(void);
+void lv_demo_app_return_home(void);
 
 /* 停掉所有持有主页对象的定时器，并把即将被销毁的对象指针置空。
- * demo(widgets/music/benchmark) 会对 lv_scr_act() 执行 lv_obj_clean()，
+ * 返回主页时会对 lv_screen_active() 执行 lv_obj_clean()，
  * 如果定时器继续访问这些已释放的对象就会出现偶发性卡死/硬件异常。*/
 static void app_stop_page_timers(void);
+
+/* Close the running demo and delete everything it created */
+static void app_close_active_demo(void)
+{
+    if(bench_scr != NULL) {
+        /* The benchmark scene timer uses the benchmark screen as user data */
+        lv_timer_t *timer = lv_timer_get_next(NULL);
+        while(timer != NULL) {
+            lv_timer_t *next = lv_timer_get_next(timer);
+            if(lv_timer_get_user_data(timer) == bench_scr) {
+                lv_timer_delete(timer);
+            }
+            timer = next;
+        }
+    }
+
+    /* Delete all running animations of the demo */
+    lv_anim_delete(NULL, NULL);
+
+    /* Home button and the benchmark title are on the top layer */
+    lv_obj_clean(lv_layer_top());
+    lv_obj_set_style_bg_opa(lv_layer_top(), LV_OPA_TRANSP, 0);
+    lv_obj_set_clickable(lv_layer_top(), false);
+    demo_home_btn = NULL;
+
+    if(bench_scr != NULL) {
+        lv_screen_load(app_scr);
+        lv_obj_delete(bench_scr);
+        bench_scr = NULL;
+    }
+
+    /* main page and the demo container are rebuilt by lv_demo_app() */
+    lv_obj_clean(lv_screen_active());
+    demo_cont = NULL;
+}
 
 static void return_home_async(void *data)
 {
@@ -138,20 +180,39 @@ static void return_home_async(void *data)
     return_home_pending = false;
 
     app_stop_page_timers();
-
-    if(active_demo == APP_DEMO_WIDGETS) {
-        lv_demo_widgets_close();
-    }
-    else if(active_demo == APP_DEMO_MUSIC) {
-        lv_demo_music_close();
-    }
-    else if(active_demo == APP_DEMO_BENCHMARK) {
-        lv_demo_benchmark_close();
-    }
+    app_close_active_demo();
 
     active_demo = APP_DEMO_NONE;
     back_to_home = 1;
     lv_demo_app();
+}
+
+static void demo_home_event_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    lv_demo_app_return_home();
+}
+
+/* Create the home button of the demos on the top layer */
+static void demo_home_btn_create(void)
+{
+    demo_home_btn = lv_image_create(lv_layer_top());
+    lv_image_set_src(demo_home_btn, &img_home);
+    lv_obj_set_clickable(demo_home_btn, true);
+    lv_obj_set_ext_click_area(demo_home_btn, 5);
+    lv_obj_align(demo_home_btn, LV_ALIGN_TOP_RIGHT, -3, 3);
+    lv_obj_add_event_cb(demo_home_btn, demo_home_event_cb, LV_EVENT_CLICKED, NULL);
+}
+
+/* Create a full screen container on the active screen for the widgets/music demo */
+static lv_obj_t *demo_cont_create(void)
+{
+    demo_cont = lv_obj_create(lv_screen_active());
+    lv_obj_remove_style_all(demo_cont);
+    lv_obj_set_size(demo_cont, lv_pct(100), lv_pct(100));
+    lv_obj_set_scrollable(demo_cont, false);
+
+    return demo_cont;
 }
 
 void lv_demo_app_return_home(void)
@@ -224,12 +285,16 @@ static void widget_event_cb(lv_event_t *e)
     back_to_home = 0;
     active_demo = APP_DEMO_WIDGETS;
 
-    lv_obj_add_flag(led_main, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(led_performance, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(tv_main, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(led_main, true);
+    lv_obj_set_hidden(led_performance, true);
+    lv_obj_set_hidden(tv_main, true);
 
     app_stop_page_timers();
-    lv_demo_widgets();
+
+    lv_demo_args_t args;
+    lv_demo_args_init(&args);
+    args.parent = demo_cont_create();
+    lv_demo_widgets_with_args(&args);   /* The demo creates its own home button (as in LVGL v8) */
 }
 
 static void music_event_cb(lv_event_t *e)
@@ -240,27 +305,78 @@ static void music_event_cb(lv_event_t *e)
     back_to_home = 0;
     active_demo = APP_DEMO_MUSIC;
 
-    lv_obj_add_flag(led_main, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(led_performance, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(tv_main, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(led_main, true);
+    lv_obj_set_hidden(led_performance, true);
+    lv_obj_set_hidden(tv_main, true);
 
     app_stop_page_timers();
-    lv_demo_music();
+
+    lv_demo_args_t args;
+    lv_demo_args_init(&args);
+    args.parent = demo_cont_create();
+    lv_demo_music_with_args(&args);     /* The demo creates its own home button (as in LVGL v8) */
+}
+
+/* Print the benchmark result to the UART (printf is retargeted to USART0) */
+static void benchmark_end_cb(const lv_demo_benchmark_summary_t *summary)
+{
+    const lv_demo_benchmark_scene_dsc_t *scenes = summary->scenes;
+    uint32_t i;
+
+    printf("\r\n[BENCHMARK] Summary (LVGL %d.%d.%d)\r\n",
+           LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR, LVGL_VERSION_PATCH);
+    printf("Name, Avg. CPU(%%), Avg. FPS, Avg. time(ms), Render time(ms), Flush time(ms)\r\n");
+
+    if(summary->valid_scene_cnt < 1) {
+        printf("All scenes avg., N/A, N/A, N/A, N/A, N/A\r\n");
+    }
+    else {
+        uint32_t render_time = (uint32_t)(summary->total_avg_render_time / summary->valid_scene_cnt);
+        uint32_t flush_time = (uint32_t)(summary->total_avg_flush_time / summary->valid_scene_cnt);
+        printf("All scenes avg., %lu, %lu, %lu, %lu, %lu\r\n",
+               (unsigned long)(summary->total_avg_cpu / summary->valid_scene_cnt),
+               (unsigned long)(summary->total_avg_fps / summary->valid_scene_cnt),
+               (unsigned long)(render_time + flush_time),
+               (unsigned long)render_time, (unsigned long)flush_time);
+    }
+
+    for(i = 0; scenes[i].create_cb != NULL; i++) {
+        uint32_t cnt = scenes[i].measurement_cnt;
+        if(cnt == 0) {
+            printf("%s, N/A, N/A, N/A, N/A, N/A\r\n", scenes[i].name);
+        }
+        else {
+            uint32_t render_time = scenes[i].render_avg_time / cnt;
+            uint32_t flush_time = scenes[i].flush_avg_time / cnt;
+            printf("%s, %lu, %lu, %lu, %lu, %lu\r\n", scenes[i].name,
+                   (unsigned long)(scenes[i].cpu_avg_usage / cnt),
+                   (unsigned long)(scenes[i].fps_avg / cnt),
+                   (unsigned long)(render_time + flush_time),
+                   (unsigned long)render_time, (unsigned long)flush_time);
+        }
+    }
+    printf("[BENCHMARK] End\r\n");
+
+    /* Keep the on-screen result table */
+    lv_demo_benchmark_summary_display(summary);
 }
 
 static void start_benchmark_cb(lv_timer_t * t)
 {
     LV_UNUSED(t);
 
-    lv_obj_add_flag(led_main, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(led_performance, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(tv_main, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(tv_main, true);
 
-    /* benchmark 结束时会 lv_obj_clean(lv_scr_act()) 来显示结果表格，
-     * 主页对象会被一并删掉，所以必须先把引用它们的定时器全部停掉。*/
+    /* 主页对象在返回时会被删除，所以必须先把引用它们的定时器全部停掉。*/
     app_stop_page_timers();
 
+    /* The benchmark modifies and cleans the active screen, run it on its own screen */
+    bench_scr = lv_obj_create(NULL);
+    lv_screen_load(bench_scr);
+
+    lv_demo_benchmark_set_end_cb(benchmark_end_cb);
     lv_demo_benchmark();
+    demo_home_btn_create();
 }
 
 static void speed_event_cb(lv_event_t *e)
@@ -281,24 +397,24 @@ static void speed_event_cb(lv_event_t *e)
 
 static void qrcode_event_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(led_main, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(led_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(led_main, true);
+    lv_obj_set_hidden(led_performance, true);
     lv_demo_qrcode(lv_event_get_user_data(e));
-    lv_obj_add_flag(obj_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(obj_performance, true);
 }
 
 static void setting_event_cb(lv_event_t *e)
 {
     lv_demo_setting(lv_event_get_user_data(e));
-    lv_obj_add_flag(obj_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(obj_performance, true);
 }
 
 static void picture_event_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(led_main, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(led_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(led_main, true);
+    lv_obj_set_hidden(led_performance, true);
     lv_demo_picture(lv_event_get_user_data(e));
-    lv_obj_add_flag(obj_performance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(obj_performance, true);
 }
 
 static void update_demo_performance_stats(void)
@@ -358,20 +474,20 @@ static void update_chart(lv_timer_t *timer)
 static void calendar_event_cb(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t *obj = lv_event_get_current_target(e);
+    lv_obj_t *obj = lv_event_get_current_target_obj(e);
 
     if(code == LV_EVENT_VALUE_CHANGED) {
         lv_calendar_date_t date;
-        if(lv_calendar_get_pressed_date(obj, &date)) {
+        if(lv_calendar_get_pressed_date(obj, &date) == LV_RESULT_OK) {
 
             rtc_para.year = date.year;
             rtc_para.month = date.month;
             rtc_para.day = date.day;
             lv_label_set_text_fmt(font_label_year, "#FFFFFF %d/%02d/%02d", rtc_para.year, rtc_para.month, rtc_para.day);
 
-            lv_obj_del(calendar);
+            lv_obj_delete(calendar);
             calendar = NULL;
-            lv_obj_clear_flag(lv_layer_top(), LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(lv_layer_top(), false);
             lv_obj_set_style_bg_opa(lv_layer_top(), LV_OPA_TRANSP, 0);
         }
 
@@ -381,10 +497,9 @@ static void calendar_event_cb(lv_event_t *e)
 static void year_label_evevt_cb(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t *obj = lv_event_get_current_target(e);
 
     if(code == LV_EVENT_CLICKED) {
-        lv_obj_add_flag(lv_layer_top(), LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(lv_layer_top(), true);
         calendar = lv_calendar_create(lv_layer_top());
         lv_obj_set_style_bg_opa(lv_layer_top(), LV_OPA_50, 0);
         lv_obj_set_style_bg_color(lv_layer_top(), lv_palette_main(LV_PALETTE_GREY), 0);
@@ -397,9 +512,9 @@ static void year_label_evevt_cb(lv_event_t *e)
         highlighted_days[0].day = rtc_para.day;
         lv_calendar_set_highlighted_dates(calendar, highlighted_days, 1);
 
-        lv_calendar_set_showed_date(calendar, rtc_para.year, rtc_para.month);
-        lv_calendar_header_dropdown_create(calendar);
-        lv_calendar_header_arrow_create(calendar);
+        lv_calendar_set_month_shown(calendar, rtc_para.year, rtc_para.month);
+        lv_calendar_add_header_dropdown(calendar);
+        lv_calendar_add_header_arrow(calendar);
         lv_obj_add_event_cb(calendar, calendar_event_cb, LV_EVENT_ALL, NULL);
     }
 }
@@ -519,17 +634,17 @@ static void rtc_timer(lv_timer_t *timer)
 static lv_obj_t *mem_meter;
 
 static lv_obj_t *temp_mem_meter;
-static lv_meter_indicator_t *indic_temp;
+static lv_obj_t *indic_temp;    /* needle line of the temperature scale */
 lv_obj_t * label_temp;
 
 static void tv_main_event_cb(lv_event_t *e)
 {
     if(lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
-        if(0 == lv_tabview_get_tab_act(tv_main)) {
+        if(0 == lv_tabview_get_tab_active(tv_main)) {
             lv_led_on(led_main);
             lv_led_off(led_performance);
             back_to_home = 1;
-        } else if(1 == lv_tabview_get_tab_act(tv_main)) {
+        } else if(1 == lv_tabview_get_tab_active(tv_main)) {
             lv_led_off(led_main);
             lv_led_on(led_performance);
         }
@@ -538,11 +653,12 @@ static void tv_main_event_cb(lv_event_t *e)
 
 //lv_event_code_t testtt;
 
-static lv_meter_indicator_t * indic_total_size;
+/* arcs of the memory scale */
+static lv_obj_t * indic_total_size;
 lv_obj_t * label_total_size;
-static lv_meter_indicator_t * indic_mem_used;
+static lv_obj_t * indic_mem_used;
 lv_obj_t * label_mem_used;
-static lv_meter_indicator_t * indic_frag;
+static lv_obj_t * indic_frag;
 lv_obj_t * label_frag;
 //static void scroll_begin_event(lv_event_t * e)
 //{
@@ -566,6 +682,17 @@ lv_obj_t * label_frag;
 //}
 
 
+/* lv_scale_set_line_needle_value() aligns the line to the top-left of the content area,
+ * but calculates the points from the full scale size, so the needle is shifted by the
+ * padding. Move the line back to the outer top-left corner to start from the center. */
+static void temp_needle_set_value(int32_t value)
+{
+    lv_scale_set_line_needle_value(temp_mem_meter, indic_temp, -12, value);
+    lv_obj_align(indic_temp, LV_ALIGN_TOP_LEFT,
+                 -lv_obj_get_style_pad_left(temp_mem_meter, LV_PART_MAIN),
+                 -lv_obj_get_style_pad_top(temp_mem_meter, LV_PART_MAIN));
+}
+
 static void update_meter_box(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
@@ -573,14 +700,41 @@ static void update_meter_box(lv_timer_t *timer)
     if(mem_meter == NULL || temp_mem_meter == NULL) return;
 
     lv_mem_monitor(&g_mon);
-    lv_meter_set_indicator_end_value(mem_meter, indic_total_size, 100);
-    lv_meter_set_indicator_end_value(mem_meter, indic_mem_used, g_mon.used_pct);
-    lv_meter_set_indicator_end_value(mem_meter, indic_frag, g_mon.frag_pct);
+    lv_arc_set_value(indic_total_size, 100);
+    lv_arc_set_value(indic_mem_used, g_mon.used_pct);
+    lv_arc_set_value(indic_frag, g_mon.frag_pct);
 
-    /* Use update_main_page_language to update labels with proper language and font */
-    update_main_page_language();
+    /* Only refresh the values here. Fonts/texts of the other labels are updated by
+     * update_main_page_language() when the language changes. */
+    update_performance_labels();
     
-    lv_meter_set_indicator_value(temp_mem_meter, indic_temp, (int32_t)g_temperature);
+    temp_needle_set_value((int32_t)g_temperature);
+}
+
+/* Create an arc on a round scale, it replaces the arc indicator of the v8 lv_meter.
+ * r_mod: radius modifier relative to the scale's content area */
+static lv_obj_t * scale_arc_create(lv_obj_t * scale, int32_t scale_size, int32_t r_mod, int32_t width,
+                                   lv_color_t color, int32_t min, int32_t max, int32_t value)
+{
+    int32_t arc_size = scale_size - 2 * lv_obj_get_style_pad_left(scale, LV_PART_MAIN) + 2 * r_mod;
+
+    lv_obj_t * arc = lv_arc_create(scale);
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
+    lv_obj_set_clickable(arc, false);
+    lv_obj_set_style_pad_all(arc, 0, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(arc, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, width, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, color, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(arc, false, LV_PART_INDICATOR);
+    lv_obj_set_size(arc, arc_size, arc_size);
+    lv_obj_center(arc);
+
+    lv_arc_set_rotation(arc, lv_scale_get_rotation(scale));
+    lv_arc_set_bg_angles(arc, 0, lv_scale_get_angle_range(scale));
+    lv_arc_set_range(arc, min, max);
+    lv_arc_set_value(arc, value);
+
+    return arc;
 }
 
 static void create_meter_box(lv_obj_t * parent, const char * title, const char * text1, const char * text2,
@@ -630,9 +784,9 @@ static void create_meter_box(lv_obj_t * parent, const char * title, const char *
     lv_label_set_text(label_frag, text3);
 
     {
-        static lv_coord_t grid_col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-//        static lv_coord_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
-        static lv_coord_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+        static int32_t grid_col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+//        static int32_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+        static int32_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
         lv_obj_set_grid_dsc_array(cont, grid_col_dsc, grid_row_dsc);
 //        lv_obj_set_grid_cell(title_label, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_START, 0, 1);
 //        lv_obj_set_grid_cell(meter, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_START, 1, 1);
@@ -675,9 +829,9 @@ static void create_temp_box(lv_obj_t * parent, const char * text1)
     update_main_page_language();
 
     {
-        static lv_coord_t grid_col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-//        static lv_coord_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
-        static lv_coord_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+        static int32_t grid_col_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+//        static int32_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+        static int32_t grid_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
         lv_obj_set_grid_dsc_array(cont, grid_col_dsc, grid_row_dsc);
 //        lv_obj_set_grid_cell(title_label, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_START, 0, 1);
 //        lv_obj_set_grid_cell(meter, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_START, 1, 1);
@@ -693,15 +847,15 @@ static void create_temp_box(lv_obj_t * parent, const char * text1)
 static void app_stop_page_timers(void)
 {
     if(g_chart_timer) {
-        lv_timer_del(g_chart_timer);
+        lv_timer_delete(g_chart_timer);
         g_chart_timer = NULL;
     }
     if(g_meter_timer) {
-        lv_timer_del(g_meter_timer);
+        lv_timer_delete(g_meter_timer);
         g_meter_timer = NULL;
     }
     if(g_rtc_timer) {
-        lv_timer_del(g_rtc_timer);
+        lv_timer_delete(g_rtc_timer);
         g_rtc_timer = NULL;
     }
 
@@ -726,6 +880,10 @@ static void app_stop_page_timers(void)
     fps_chart = NULL;
     mem_meter = NULL;
     temp_mem_meter = NULL;
+    indic_total_size = NULL;
+    indic_mem_used = NULL;
+    indic_frag = NULL;
+    indic_temp = NULL;
 
     tv_main = NULL;
     obj_main = NULL;
@@ -734,9 +892,9 @@ static void app_stop_page_timers(void)
     led_performance = NULL;
 
     if(calendar) {
-        lv_obj_del(calendar);
+        lv_obj_delete(calendar);
         calendar = NULL;
-        lv_obj_clear_flag(lv_layer_top(), LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(lv_layer_top(), false);
         lv_obj_set_style_bg_opa(lv_layer_top(), LV_OPA_TRANSP, 0);
     }
 }
@@ -747,19 +905,32 @@ static void app_stop_page_timers(void)
 
 void lv_demo_app(void)
 {
+    if(app_scr == NULL) {
+        app_scr = lv_screen_active();
+    }
+
+#if LV_USE_PERF_MONITOR
+    /* The perf monitor is only needed for the benchmark data, the benchmark
+     * shows the values in its own title, so hide the default overlay label */
+    lv_sysmon_hide_performance(lv_display_get_default());
+#endif
+
 //    static lv_obj_t *tv_main;       /* main page */
-    tv_main = lv_tabview_create(lv_scr_act(), LV_DIR_TOP, 0);
+    tv_main = lv_tabview_create(lv_screen_active());
+    /* No tab buttons, the pages are switched by swiping */
+    lv_tabview_set_tab_bar_size(tv_main, 0);
+    lv_obj_set_hidden(lv_tabview_get_tab_bar(tv_main), true);
     lv_obj_add_event_cb(tv_main, tv_main_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
     /*Create a LED and switch it OFF*/
-    led_main  = lv_led_create(lv_scr_act());
+    led_main  = lv_led_create(lv_screen_active());
     lv_obj_set_size(led_main, 10, 10);
     lv_obj_align(led_main, LV_ALIGN_CENTER, SCALE_POS_X(-30), SCALE_POS_Y(250));
     lv_led_on(led_main);
 //    lv_obj_add_event_cb(led_main, scroll_begin_event2, LV_EVENT_ALL, NULL);
 
     /*Copy the previous LED and set a brightness*/
-    led_performance  = lv_led_create(lv_scr_act());
+    led_performance  = lv_led_create(lv_screen_active());
     lv_obj_set_size(led_performance, 10, 10);
     lv_obj_align(led_performance, LV_ALIGN_CENTER, SCALE_POS_X(30), SCALE_POS_Y(250));
 //    lv_led_set_color(led2, lv_palette_main(LV_PALETTE_LIGHT_GREEN));
@@ -783,7 +954,7 @@ void lv_demo_app(void)
     lv_obj_set_width(obj_performance, LV_HOR_RES_MAX);
     lv_obj_set_height(obj_performance, LV_VER_RES_MAX);
 
-    lv_obj_clear_flag(obj_main, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(obj_main, false);
     lv_obj_set_scrollbar_mode(obj_performance, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_top(obj_performance, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_bottom(obj_performance, 0, LV_PART_MAIN);
@@ -791,54 +962,54 @@ void lv_demo_app(void)
     lv_obj_set_style_pad_right(obj_performance, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(obj_performance, 0, LV_PART_MAIN);
 
-    img = lv_img_create(obj_main);
-    lv_img_set_src(img, &img_background);
+    img = lv_image_create(obj_main);
+    lv_image_set_src(img, &img_background);
 
-    imgbtn_widget = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_widget, &img_widget);
-    lv_obj_add_flag(imgbtn_widget, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_widget = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_widget, &img_widget);
+    lv_obj_set_clickable(imgbtn_widget, true);
 //    lv_obj_set_size(imgbtn_widget, 100, 100);
     lv_obj_set_pos(imgbtn_widget, SCALE_POS_X(390), SCALE_POS_Y(207));
 
-    imgbtn_music = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_music, &img_music);
-    lv_obj_add_flag(imgbtn_music, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_music = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_music, &img_music);
+    lv_obj_set_clickable(imgbtn_music, true);
 //    lv_obj_set_size(imgbtn_music, 100, 100);
     lv_obj_set_pos(imgbtn_music, SCALE_POS_X(524), SCALE_POS_Y(207));
 
-    imgbtn_speed = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_speed, &img_speed);
-    lv_obj_add_flag(imgbtn_speed, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_speed = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_speed, &img_speed);
+    lv_obj_set_clickable(imgbtn_speed, true);
 //    lv_obj_set_size(imgbtn_speed, 100, 100);
     lv_obj_set_pos(imgbtn_speed, SCALE_POS_X(657), SCALE_POS_Y(207));
 
-    imgbtn_picture = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_picture, &img_picture);
-    lv_obj_add_flag(imgbtn_picture, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_picture = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_picture, &img_picture);
+    lv_obj_set_clickable(imgbtn_picture, true);
 //    lv_obj_set_size(imgbtn_file, 100, 100);
     lv_obj_set_pos(imgbtn_picture, SCALE_POS_X(783), SCALE_POS_Y(207));
 
-    imgbtn_about = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_about, &img_about);
-    lv_obj_add_flag(imgbtn_about, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_about = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_about, &img_about);
+    lv_obj_set_clickable(imgbtn_about, true);
 //    lv_obj_set_size(imgbtn_about, 100, 100);
     lv_obj_set_pos(imgbtn_about, SCALE_POS_X(390), SCALE_POS_Y(350));
 
-    imgbtn_qrcode = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_qrcode, &img_qrcode);
-    lv_obj_add_flag(imgbtn_qrcode, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_qrcode = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_qrcode, &img_qrcode);
+    lv_obj_set_clickable(imgbtn_qrcode, true);
 //    lv_obj_set_size(imgbtn_qrcode, 100, 100);
     lv_obj_set_pos(imgbtn_qrcode, SCALE_POS_X(524), SCALE_POS_Y(350));
 
-    imgbtn_file = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_file, &img_file);
-    lv_obj_add_flag(imgbtn_file, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_file = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_file, &img_file);
+    lv_obj_set_clickable(imgbtn_file, true);
 //    lv_obj_set_size(imgbtn_file, 100, 100);
     lv_obj_set_pos(imgbtn_file, SCALE_POS_X(657), SCALE_POS_Y(350));
 
-    imgbtn_setting = lv_img_create(obj_main);
-    lv_img_set_src(imgbtn_setting, &img_setting);
-    lv_obj_add_flag(imgbtn_setting, LV_OBJ_FLAG_CLICKABLE);
+    imgbtn_setting = lv_image_create(obj_main);
+    lv_image_set_src(imgbtn_setting, &img_setting);
+    lv_obj_set_clickable(imgbtn_setting, true);
 //    lv_obj_set_size(imgbtn_file, 100, 100);
     lv_obj_set_pos(imgbtn_setting, SCALE_POS_X(783), SCALE_POS_Y(350));
 
@@ -890,7 +1061,7 @@ void lv_demo_app(void)
     lv_obj_set_pos(cpu_chart, SCALE_POS_X(7 + 75), 19);
     lv_obj_set_size(cpu_chart, SCALE_POS_X(1004 - 75), 155);
     lv_chart_set_type(cpu_chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_range(cpu_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
+    lv_chart_set_axis_range(cpu_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
     lv_chart_set_div_line_count(cpu_chart, 6, 12);
     cpu_chart_series = lv_chart_add_series(cpu_chart, lv_color_make(0x50, 0x0A, 0x88), LV_CHART_AXIS_PRIMARY_Y);
     lv_chart_set_point_count(cpu_chart, 20);
@@ -901,7 +1072,7 @@ void lv_demo_app(void)
     lv_obj_set_pos(fps_chart, SCALE_POS_X(7 + 75), 198);
     lv_obj_set_size(fps_chart, SCALE_POS_X(1004 - 75), 155);
     lv_chart_set_type(fps_chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_range(fps_chart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
+    lv_chart_set_axis_range(fps_chart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
     lv_chart_set_div_line_count(fps_chart, 6, 12);
     fps_chart_series = lv_chart_add_series(fps_chart, lv_palette_main(LV_PALETTE_ORANGE), LV_CHART_AXIS_SECONDARY_Y);
     lv_chart_set_point_count(fps_chart, 20);
@@ -918,7 +1089,7 @@ void lv_demo_app(void)
     lv_label_set_recolor(cpu_label, true);                      /*Enable re-coloring by commands in the text*/
     lv_label_set_text(cpu_label, "#F12F12 CPU usage(%)");
 
-    lv_label_set_long_mode(cpu_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(cpu_label, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_pos(cpu_label, SCALE_POS_X(21), 2);
     //Write codes FPS label
     lv_obj_t *fps_label = lv_label_create(obj_performance);
@@ -926,65 +1097,112 @@ void lv_demo_app(void)
     lv_label_set_recolor(fps_label, true);                      /*Enable re-coloring by commands in the text*/
     lv_label_set_text(fps_label, "#F12F12 FPS");
 
-    lv_label_set_long_mode(fps_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(fps_label, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_pos(fps_label, SCALE_POS_X(21), 182);
 
     g_chart_timer = lv_timer_create(update_chart, 500, NULL);
 
-    /* Memory gauge */
-    mem_meter = lv_meter_create(obj_performance);
-    lv_obj_set_pos(mem_meter, SCALE_POS_X(130), 357);
-    lv_obj_set_size(mem_meter, SCALE_POS_X(300), SCALE_POS_X(300));
+    /* lv_meter was removed in LVGL v9, the gauges are built with lv_scale + lv_arc */
+    int32_t meter_size = SCALE_POS_X(300);
 
+    /* Memory gauge */
+    mem_meter = lv_scale_create(obj_performance);
+    lv_obj_set_pos(mem_meter, SCALE_POS_X(130), 357);
+    lv_obj_set_size(mem_meter, meter_size, meter_size);
     lv_obj_set_style_pad_all(mem_meter, 10, LV_PART_MAIN);
     lv_obj_set_style_border_width(mem_meter, 0, LV_PART_MAIN);
-    lv_obj_remove_style(mem_meter, NULL, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(mem_meter, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(mem_meter, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(mem_meter, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(mem_meter, 0, LV_PART_MAIN);
 
-    lv_meter_scale_t *mem_scale = lv_meter_add_scale(mem_meter);
-    lv_meter_set_scale_ticks(mem_meter, mem_scale, 6, 2, 10, lv_palette_main(LV_PALETTE_GREY));
-    lv_meter_set_scale_major_ticks(mem_meter, mem_scale, 1, 2, 10, lv_color_hex3(0xeee), 15);
-    lv_meter_set_scale_range(mem_meter, mem_scale, 0, 100, 270, 90);
+    lv_scale_set_mode(mem_meter, LV_SCALE_MODE_ROUND_INNER);
+    lv_scale_set_total_tick_count(mem_meter, 6);
+    lv_scale_set_major_tick_every(mem_meter, 1);
+    lv_scale_set_label_show(mem_meter, true);
+    lv_scale_set_range(mem_meter, 0, 100);
+    lv_scale_set_angle_range(mem_meter, 270);
+    lv_scale_set_rotation(mem_meter, 90);
+    lv_obj_set_style_length(mem_meter, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_line_width(mem_meter, 2, LV_PART_INDICATOR);
+    lv_obj_set_style_line_color(mem_meter, lv_color_hex3(0xeee), LV_PART_INDICATOR);
 
-    indic_total_size = lv_meter_add_arc(mem_meter, mem_scale, 5, lv_palette_main(LV_PALETTE_RED), 0);
-    indic_mem_used = lv_meter_add_arc(mem_meter, mem_scale, 5, lv_palette_main(LV_PALETTE_GREEN), -5);
-    indic_frag = lv_meter_add_arc(mem_meter, mem_scale, 5, lv_palette_main(LV_PALETTE_BLUE), -10);
-
-    lv_meter_set_indicator_end_value(mem_meter, indic_total_size, 100);
-    lv_meter_set_indicator_end_value(mem_meter, indic_mem_used, 20);
-    lv_meter_set_indicator_end_value(mem_meter, indic_frag, 80);
+    indic_total_size = scale_arc_create(mem_meter, meter_size, 0, 5, lv_palette_main(LV_PALETTE_RED), 0, 100, 100);
+    indic_mem_used = scale_arc_create(mem_meter, meter_size, -5, 5, lv_palette_main(LV_PALETTE_GREEN), 0, 100, 20);
+    indic_frag = scale_arc_create(mem_meter, meter_size, -10, 5, lv_palette_main(LV_PALETTE_BLUE), 0, 100, 80);
 
     /* Temperature gauge */
-    temp_mem_meter = lv_meter_create(obj_performance);
+    static lv_style_t style_sec_cold;
+    static lv_style_t style_sec_hot;
+    static bool sec_styles_inited = false;
+
+    if(!sec_styles_inited) {
+        sec_styles_inited = true;
+
+        lv_style_init(&style_sec_cold);
+        lv_style_set_arc_color(&style_sec_cold, lv_palette_main(LV_PALETTE_BLUE));
+        lv_style_set_arc_width(&style_sec_cold, 1);
+        lv_style_set_line_color(&style_sec_cold, lv_palette_main(LV_PALETTE_BLUE));
+
+        lv_style_init(&style_sec_hot);
+        lv_style_set_arc_color(&style_sec_hot, lv_palette_main(LV_PALETTE_RED));
+        lv_style_set_arc_width(&style_sec_hot, 1);
+        lv_style_set_line_color(&style_sec_hot, lv_palette_main(LV_PALETTE_RED));
+    }
+
+    temp_mem_meter = lv_scale_create(obj_performance);
     lv_obj_set_pos(temp_mem_meter, SCALE_POS_X(588), 357);
-    lv_obj_set_size(temp_mem_meter, SCALE_POS_X(300), SCALE_POS_X(300));
-    lv_obj_set_style_width(temp_mem_meter, 5, LV_PART_INDICATOR);
-    lv_obj_set_style_height(temp_mem_meter, 5, LV_PART_INDICATOR);
-    lv_obj_set_style_radius(temp_mem_meter, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+    lv_obj_set_size(temp_mem_meter, meter_size, meter_size);
     lv_obj_set_style_pad_all(temp_mem_meter, 10, LV_PART_MAIN);
     lv_obj_set_style_border_width(temp_mem_meter, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(temp_mem_meter, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(temp_mem_meter, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(temp_mem_meter, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(temp_mem_meter, 0, LV_PART_MAIN);
 
-    lv_meter_scale_t *temp_scale = lv_meter_add_scale(temp_mem_meter);
-    lv_meter_set_scale_ticks(temp_mem_meter, temp_scale, 31, 1, 6, lv_palette_main(LV_PALETTE_GREY));
-    lv_meter_set_scale_major_ticks(temp_mem_meter, temp_scale, 5, 2, 15, lv_color_black(), 5);
-    lv_meter_set_scale_range(temp_mem_meter, temp_scale, -40, 105, 270, 135);
+    lv_scale_set_mode(temp_mem_meter, LV_SCALE_MODE_ROUND_INNER);
+    lv_scale_set_total_tick_count(temp_mem_meter, 31);
+    lv_scale_set_major_tick_every(temp_mem_meter, 5);
+    lv_scale_set_label_show(temp_mem_meter, true);
+    lv_scale_set_range(temp_mem_meter, -40, 105);
+    lv_scale_set_angle_range(temp_mem_meter, 270);
+    lv_scale_set_rotation(temp_mem_meter, 135);
+    /* minor ticks */
+    lv_obj_set_style_length(temp_mem_meter, 6, LV_PART_ITEMS);
+    lv_obj_set_style_line_width(temp_mem_meter, 1, LV_PART_ITEMS);
+    lv_obj_set_style_line_color(temp_mem_meter, lv_palette_main(LV_PALETTE_GREY), LV_PART_ITEMS);
+    /* major ticks */
+    lv_obj_set_style_length(temp_mem_meter, 15, LV_PART_INDICATOR);
+    lv_obj_set_style_line_width(temp_mem_meter, 2, LV_PART_INDICATOR);
+    lv_obj_set_style_line_color(temp_mem_meter, lv_color_black(), LV_PART_INDICATOR);
 
-    indic_temp = lv_meter_add_arc(temp_mem_meter, temp_scale, 1, lv_palette_main(LV_PALETTE_BLUE), 0);
-    lv_meter_set_indicator_start_value(temp_mem_meter, indic_temp, -40);
-    lv_meter_set_indicator_end_value(temp_mem_meter, indic_temp, 10);
+    /* blue section: -40 ~ 10, red section: 50 ~ 105 */
+    lv_scale_section_t * section = lv_scale_add_section(temp_mem_meter);
+    lv_scale_set_section_range(temp_mem_meter, section, -40, 10);
+    lv_scale_set_section_style_main(temp_mem_meter, section, &style_sec_cold);
+    lv_scale_set_section_style_indicator(temp_mem_meter, section, &style_sec_cold);
+    lv_scale_set_section_style_items(temp_mem_meter, section, &style_sec_cold);
 
-    indic_temp = lv_meter_add_scale_lines(temp_mem_meter, temp_scale, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_GREY), true, 0);
-    lv_meter_set_indicator_start_value(temp_mem_meter, indic_temp, -40);
-    lv_meter_set_indicator_end_value(temp_mem_meter, indic_temp, 10);
+    section = lv_scale_add_section(temp_mem_meter);
+    lv_scale_set_section_range(temp_mem_meter, section, 50, 105);
+    lv_scale_set_section_style_main(temp_mem_meter, section, &style_sec_hot);
+    lv_scale_set_section_style_indicator(temp_mem_meter, section, &style_sec_hot);
+    lv_scale_set_section_style_items(temp_mem_meter, section, &style_sec_hot);
 
-    indic_temp = lv_meter_add_arc(temp_mem_meter, temp_scale, 1, lv_palette_main(LV_PALETTE_RED), 0);
-    lv_meter_set_indicator_start_value(temp_mem_meter, indic_temp, 50);
-    lv_meter_set_indicator_end_value(temp_mem_meter, indic_temp, 105);
+    /* needle */
+    indic_temp = lv_line_create(temp_mem_meter);
+    lv_obj_set_style_line_width(indic_temp, 2, LV_PART_MAIN);
+    lv_obj_set_style_line_color(indic_temp, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_line_rounded(indic_temp, true, LV_PART_MAIN);
+    temp_needle_set_value(10);
 
-    indic_temp = lv_meter_add_scale_lines(temp_mem_meter, temp_scale, lv_palette_main(LV_PALETTE_GREY), lv_palette_main(LV_PALETTE_RED), true, 0);
-    lv_meter_set_indicator_start_value(temp_mem_meter, indic_temp, 50);
-    lv_meter_set_indicator_end_value(temp_mem_meter, indic_temp, 105);
-
-    indic_temp = lv_meter_add_needle_line(temp_mem_meter, temp_scale, 2, lv_palette_main(LV_PALETTE_GREY), -12);
+    lv_obj_t * needle_center = lv_obj_create(temp_mem_meter);
+    lv_obj_remove_style_all(needle_center);
+    lv_obj_set_size(needle_center, 5, 5);
+    lv_obj_set_style_radius(needle_center, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(needle_center, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(needle_center, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_center(needle_center);
 
     ///////////////////////////////////////////
     create_meter_box(obj_performance, "Memory used", "Total size: 63%", "Memory used: 44%", "Amount of fragmentation: 58%");
@@ -1027,7 +1245,7 @@ void lv_demo_app(void)
     lv_label_set_recolor(font_label_year, true);                      /*Enable re-coloring by commands in the text*/
     lv_label_set_text_fmt(font_label_year, "#FFFFFF %d/%02d/%02d", rtc_para.year, rtc_para.month, rtc_para.day);
     lv_obj_align(font_label_year, LV_ALIGN_LEFT_MID, SCALE_POS_X(50), SCALE_POS_Y(40));
-    lv_obj_add_flag(font_label_year, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(font_label_year, true);
     lv_obj_add_event_cb(font_label_year, year_label_evevt_cb, LV_EVENT_ALL, 0);
 
     if(g_rtc_timer == NULL) {
@@ -1037,12 +1255,12 @@ void lv_demo_app(void)
         }
     }
 
-    img = lv_img_create( obj_performance );
-    lv_img_set_src(img, &img_temp);
+    img = lv_image_create( obj_performance );
+    lv_image_set_src(img, &img_temp);
     lv_obj_align_to(img, temp_mem_meter, LV_ALIGN_CENTER, SCALE_POS_X(0), SCALE_POS_Y(90));
     
-    img = lv_img_create( obj_performance );
-    lv_img_set_src(img, &img_mem);
+    img = lv_image_create( obj_performance );
+    lv_image_set_src(img, &img_mem);
     lv_obj_align_to(img, mem_meter, LV_ALIGN_CENTER, SCALE_POS_X(0), SCALE_POS_Y(0));
 }
 

@@ -13,55 +13,57 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../lvgl/src/misc/lv_color.h"
-
 #include "gd32f527.h"
 #include "gd32f527b_lcd_eval.h"
 
 /*********************
  *      DEFINES
  *********************/
-#define LV_BUF_TYPE    2 /* 1 one buf 2 two buf 3 pingpong*/
-#define USE_IPA_INT    1
+/* 1: one partial buffer + IPA copy
+ * 2: two partial buffers + IPA copy (default)
+ * 3: LVGL renders directly into the TLI frame buffer (no IPA copy) */
+#define LV_BUF_TYPE     2
+/* 1: IPA transfer complete is reported by interrupt, 0: polling */
+#define USE_IPA_INT     1
+
+#define BYTE_PER_PIXEL  (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565)) /*will be 2 for RGB565 */
+
+/* Number of lines of a partial draw buffer */
+#define LV_BUF_LINES    64
 
 /**********************
  *      TYPEDEFS
  **********************/
-//extern uint16_t back_to_home;
+
 /**********************
  *  STATIC PROTOTYPES
  **********************/
 static void disp_init(void);
-static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p);
+
+static void disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
+
 /**********************
  *  STATIC VARIABLES
  **********************/
-#if(LV_BUF_TYPE == 1)
-/* TLI buf */
-lv_color_t buf_disp[LV_HOR_RES_MAX * LV_VER_RES_MAX] __attribute__((section("SDRAM"))); 
-/* LVGL buf */
-#define LV_BUF_SIZE (LV_HOR_RES_MAX* 256/sizeof(lv_color_t))
-lv_color_t buf_2_1[LV_BUF_SIZE] __attribute__((section("ADDSRAM")));
-#elif(LV_BUF_TYPE==2)
-/* TLI buf */
-lv_color_t buf_disp[LV_HOR_RES_MAX * LV_VER_RES_MAX] __attribute__((section("SDRAM"), aligned(32)));
-/* LVGL buf */
-#define LV_BUF_SIZE (LV_HOR_RES_MAX * 128/sizeof(lv_color_t))
-lv_color_t buf_2_1[LV_BUF_SIZE] __attribute__((section("SDRAM"), aligned(32)));
-lv_color_t buf_2_2[LV_BUF_SIZE] __attribute__((section("SDRAM"), aligned(32)));
-#else
-/* TLI buf */
-__ALIGNED(32) lv_color_t buf_disp[LV_HOR_RES_MAX * LV_VER_RES_MAX] __attribute__((section("SDRAM")));
-/* LVGL buf  TLI buf */
-#define LV_BUF_SIZE (LV_HOR_RES_MAX * LV_VER_RES_MAX)
-static lv_color_t buf_2_1[LV_HOR_RES_MAX * LV_VER_RES_MAX] __attribute__((section("SDRAM")));
-static lv_color_t buf_2_2[LV_HOR_RES_MAX * LV_VER_RES_MAX] __attribute__((section("SDRAM")));
+/* TLI frame buffer (shown on the LCD) */
+static uint8_t buf_disp[MY_DISP_HOR_RES * MY_DISP_VER_RES * BYTE_PER_PIXEL] __attribute__((section("SDRAM"), aligned(32)));
+
+#if (LV_BUF_TYPE == 1)
+/* LVGL draw buffer */
+#define LV_BUF_SIZE     (MY_DISP_HOR_RES * LV_BUF_LINES * BYTE_PER_PIXEL)
+static uint8_t buf_2_1[LV_BUF_SIZE] __attribute__((section("SDRAM"), aligned(32)));
+#elif (LV_BUF_TYPE == 2)
+/* LVGL draw buffers */
+#define LV_BUF_SIZE     (MY_DISP_HOR_RES * LV_BUF_LINES * BYTE_PER_PIXEL)
+static uint8_t buf_2_1[LV_BUF_SIZE] __attribute__((section("SDRAM"), aligned(32)));
+static uint8_t buf_2_2[LV_BUF_SIZE] __attribute__((section("SDRAM"), aligned(32)));
 #endif
 
-#if (USE_IPA_INT == 1)
-volatile uint8_t g_ipa_flag = 0;
-static lv_disp_drv_t * g_disp_drv;
+#if (LV_BUF_TYPE != 3) && (USE_IPA_INT == 1)
+static volatile uint8_t g_ipa_flag = 0U;
+static lv_display_t * g_disp;
 #endif
+
 /**********************
  *      MACROS
  **********************/
@@ -77,41 +79,28 @@ void lv_port_disp_init(void)
      * -----------------------*/
     disp_init();
 
-    /*-----------------------------------
-     * Register the display in LVGL
-     *----------------------------------*/
-    static lv_disp_draw_buf_t draw_buf;
-    static lv_disp_drv_t disp_drv;
+    /*------------------------------------
+     * Create a display and set a flush_cb
+     * -----------------------------------*/
+    lv_display_t * disp = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_flush_cb(disp, disp_flush);
 
-    /*Set a display buffer*/
-#if(LV_BUF_TYPE==1)
-    lv_disp_draw_buf_init(&draw_buf, buf_2_1, NULL, LV_BUF_SIZE);
-#elif(LV_BUF_TYPE==2)
-    lv_disp_draw_buf_init(&draw_buf, buf_2_1, buf_2_2, LV_BUF_SIZE);
+#if (LV_BUF_TYPE == 1)
+    /* One buffer for partial rendering */
+    lv_display_set_buffers(disp, buf_2_1, NULL, sizeof(buf_2_1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+#elif (LV_BUF_TYPE == 2)
+    /* Two buffers for partial rendering, IPA copies the rendered area to the frame buffer in the background */
+    lv_display_set_buffers(disp, buf_2_1, buf_2_2, sizeof(buf_2_1), LV_DISPLAY_RENDER_MODE_PARTIAL);
 #else
-    lv_disp_draw_buf_init(&draw_buf, buf_2_1, buf_2_2, LV_BUF_SIZE);
-#endif /* LV_BUF_TYPE==3 */
-
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = LV_HOR_RES_MAX;
-    disp_drv.ver_res = LV_VER_RES_MAX;
-    disp_drv.flush_cb = disp_flush;
-    disp_drv.draw_buf = &draw_buf;
-#if(LV_BUF_TYPE==3)
-    disp_drv.full_refresh = 1;
+    /* LVGL renders directly into the frame buffer shown by the TLI */
+    lv_display_set_buffers(disp, buf_disp, NULL, sizeof(buf_disp), LV_DISPLAY_RENDER_MODE_DIRECT);
 #endif
-    lv_disp_drv_register(&disp_drv);
 
-    /* Fill a memory array with a color if you have GPU.
-     * Note that, in lv_conf.h you can enable GPUs that has built-in support in LVGL.
-     * But if you have a different GPU you can use with this callback.*/
-    //disp_drv.gpu_fill_cb = gpu_fill;
-
-#if(LV_BUF_TYPE == 3)
-    nvic_irq_enable(TLI_IRQn, 2, 0);
-#else
+#if (LV_BUF_TYPE != 3) && (USE_IPA_INT == 1)
+    g_disp = disp;
     nvic_irq_enable(IPA_IRQn, 2, 0);
-#endif /* LV_BUF_TYPE==3 */
+#endif
 }
 
 /**********************
@@ -121,23 +110,19 @@ void lv_port_disp_init(void)
 /*Initialize your display and the required peripherals.*/
 static void disp_init(void)
 {
-    /*You code here*/
-    /* ipa init */
+    /* IPA init */
     rcu_periph_clock_enable(RCU_IPA);
     ipa_interval_clock_num_config(5);
     ipa_inter_timer_config(IPA_INTER_TIMER_ENABLE);
-    /* initilize the LCD and layers */
+
+    /* initialize the LCD and layers */
     lcd_init();
-#if(LV_BUF_TYPE==3)
-    lcd_layer_init(LCD_LAYER_BACKGROUND, (uint32_t)buf_2_1, LV_HOR_RES_MAX, LV_VER_RES_MAX, LAYER_PPF_RGB565);
-#else
-    lcd_layer_init(LCD_LAYER_BACKGROUND, (uint32_t)buf_disp, LV_HOR_RES_MAX, LV_VER_RES_MAX, LAYER_PPF_RGB565);
-#endif
+    lcd_layer_init(LCD_LAYER_BACKGROUND, (uint32_t)buf_disp, MY_DISP_HOR_RES, MY_DISP_VER_RES, LAYER_PPF_RGB565);
     lcd_layer_enable(LCD_LAYER_BACKGROUND);
     lcd_layer_set(LCD_LAYER_BACKGROUND);
     lcd_transparency_set(255);
     lcd_clear(LCD_COLOR_BLACK);
-    
+
     tli_enable();
 }
 
@@ -157,55 +142,66 @@ void disp_disable_update(void)
     disp_flush_enabled = false;
 }
 
-/* A callback for cleaning any caches related to the display
- */
-/*Flush the content of the internal buffer the specific area on the display
- *You can use DMA or any hardware acceleration to do this operation in the background but
- *'lv_disp_flush_ready()' has to be called when finished.*/
-static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
+/*Flush the content of the internal buffer the specific area on the display.
+ *`px_map` contains the rendered image as raw pixel map and it should be copied to `area` on the display.
+ *IPA is used to copy the pixels in the background and
+ *'lv_display_flush_ready()' is called when it's finished.*/
+static void disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
 {
-//    disp_clean_dcache();
-    /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one*/
-#if (USE_IPA_INT == 0)
-    uint32_t time_out;
-#endif
-    uint16_t offline;
-    offline = LV_HOR_RES_MAX - (area->x2 - area->x1 + 1);
-    
-    while(1 == g_ipa_flag){
+#if (LV_BUF_TYPE == 3)
+    /* Rendered directly into the frame buffer, nothing to copy */
+    LV_UNUSED(area);
+    LV_UNUSED(px_map);
+    lv_display_flush_ready(disp);
+#else
+    if(!disp_flush_enabled) {
+        lv_display_flush_ready(disp);
+        return;
     }
-    
-    IPA_CTL = 0x0;
-    IPA_FMADDR = (uint32_t)color_p;
-    IPA_DMADDR = (uint32_t)buf_disp + 2*(LV_HOR_RES_MAX*area->y1+area->x1);
-    IPA_FLOFF = 0;
-    IPA_DLOFF = offline;
-    IPA_FPCTL = FOREGROUND_PPF_RGB565;
-    IPA_IMS = (uint32_t)((area->x2 - area->x1 + 1) << 16) | (uint16_t)(area->y2 - area->y1 + 1);
-    
+
+    uint32_t w = (uint32_t)lv_area_get_width(area);
+    uint32_t h = (uint32_t)lv_area_get_height(area);
+
 #if (USE_IPA_INT == 1)
-    g_disp_drv = disp_drv;
-    /* enable IPA interrupt */
-    g_ipa_flag = 1;
+    /* wait for the previous transfer */
+    while(1U == g_ipa_flag) {
+    }
+#endif
+
+    IPA_CTL = 0x0U;
+    /* clear stale flags, a pending error flag would make the IPA interrupt fire endlessly */
+    IPA_INTC = IPA_INTC_TAEIFC | IPA_INTC_FTFIFC | IPA_INTC_TLMIFC |
+               IPA_INTC_LACIFC | IPA_INTC_LLFIFC | IPA_INTC_WCFIFC;
+    /* destination format must match the RGB565 frame buffer (reset value is ARGB8888) */
+    IPA_DPCTL = (IPA_DPCTL & ~IPA_DPCTL_DPF) | (uint32_t)IPA_DPF_RGB565;
+    IPA_FMADDR = (uint32_t)px_map;
+    IPA_DMADDR = (uint32_t)buf_disp + BYTE_PER_PIXEL * (MY_DISP_HOR_RES * area->y1 + area->x1);
+    IPA_FLOFF = 0U;
+    IPA_DLOFF = MY_DISP_HOR_RES - w;
+    IPA_FPCTL = FOREGROUND_PPF_RGB565;
+    IPA_IMS = (uint32_t)(w << 16) | (uint16_t)h;
+
+#if (USE_IPA_INT == 1)
+    /* enable IPA interrupt, lv_display_flush_ready() is called in IPA_IRQHandler() */
+    g_ipa_flag = 1U;
     IPA_CTL |= IPA_CTL_FTFIE | IPA_CTL_TAEIE | IPA_CTL_WCFIE;
     IPA_CTL |= IPA_CTL_TEN;
 #else
+    uint32_t time_out = 0U;
     IPA_CTL |= IPA_CTL_TEN;
     /* Wait until transfer is done */
-    while (IPA_CTL & IPA_CTL_TEN)
-    {
-        if(time_out++ >= 0XFFFFFFFF) break;
+    while(IPA_CTL & IPA_CTL_TEN) {
+        if(time_out++ >= 0xFFFFFFF0U) break;
     }
 
-    /* IMPORTANT!!!
-     * Inform the graphics library that you are ready with the flushing*/
-    lv_disp_flush_ready(disp_drv);
+    /*IMPORTANT!!!
+     *Inform the graphics library that you are ready with the flushing*/
+    lv_display_flush_ready(disp);
 #endif
-
+#endif /* LV_BUF_TYPE == 3 */
 }
 
-#if (USE_IPA_INT == 1)
-
+#if (LV_BUF_TYPE != 3) && (USE_IPA_INT == 1)
 /*!
     \brief      this function handles IPA exception
     \param[in]  none
@@ -214,25 +210,25 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 */
 void IPA_IRQHandler(void)
 {
-    if(RESET != ipa_interrupt_flag_get(IPA_INT_FLAG_FTF)){
-        if(0U != (IPA_CTL & IPA_CTL_FTFIE)){
-            IPA_CTL &= (uint32_t)(~IPA_CTL_FTFIE);
-            ipa_interrupt_flag_clear(IPA_INT_FLAG_FTF);
-            
-            if(1U == g_ipa_flag){
-                g_ipa_flag = 0U;
-                /* IMPORTANT!!!
-                 * Inform the graphics library that you are ready with the flushing*/
-                lv_disp_flush_ready(g_disp_drv);
-            }
+    uint32_t flags = IPA_INTF;
+
+    /* Clear every flag that is set. TAE/WCF are enabled in disp_flush() too: if they were
+     * left uncleared, the interrupt would re-enter forever and the system would hang. */
+    IPA_INTC = flags;
+
+    if(0U != (flags & (IPA_INTF_FTFIF | IPA_INTF_TAEIF | IPA_INTF_WCFIF))) {
+        IPA_CTL &= (uint32_t)(~(IPA_CTL_FTFIE | IPA_CTL_TAEIE | IPA_CTL_WCFIE));
+
+        /* Also finish on error, otherwise LVGL would wait for the flush forever */
+        if(1U == g_ipa_flag) {
+            g_ipa_flag = 0U;
+            /*IMPORTANT!!!
+             *Inform the graphics library that you are ready with the flushing*/
+            lv_display_flush_ready(g_disp);
         }
     }
 }
-
 #endif
-
-/*OPTIONAL: GPU INTERFACE*/
-
 
 #else /*Enable this file at the top*/
 
